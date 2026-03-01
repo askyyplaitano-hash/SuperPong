@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>PONG — POWER-UP</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{background:#000;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:monospace;padding:8px;overflow:hidden;}
+
+  .screen{display:none;flex-direction:column;align-items:center;gap:14px;width:100%;max-width:800px;}
+  .screen.active{display:flex;}
+
+  h1{font-size:clamp(36px,9vw,60px);font-weight:900;letter-spacing:8px;}
+  .sub{font-size:11px;color:#555;letter-spacing:3px;margin-top:-10px;}
+
+  /* menu */
+  .menu-btns{display:flex;flex-direction:column;gap:12px;width:100%;max-width:340px;}
+  .mbtn{width:100%;padding:14px;font-family:monospace;font-size:13px;font-weight:700;letter-spacing:3px;cursor:pointer;text-align:center;text-decoration:none;display:block;}
+  .mbtn.solid{background:#ff0;color:#000;border:none;}
+  .mbtn.solid:hover{background:#cc0;}
+  .mbtn.outline{background:#000;color:#fff;border:2px solid #fff;}
+  .mbtn.outline:hover{background:#fff;color:#000;}
+
+  .controls-hint{font-size:10px;color:#333;text-align:center;line-height:2;letter-spacing:1px;}
+
+  /* game */
+  #screen-game{justify-content:flex-start;}
+  .scoreboard{display:flex;justify-content:space-between;align-items:center;width:100%;max-width:800px;}
+  .score-box{text-align:center;min-width:100px;}
+  .score-num{font-size:clamp(28px,7vw,48px);font-weight:900;}
+  .score-lbl{font-size:10px;color:#888;letter-spacing:2px;}
+  #g-status{font-size:11px;color:#888;letter-spacing:2px;text-align:center;flex:1;}
+
+  /* power-up bar */
+  .pu-bar{display:flex;justify-content:space-between;width:100%;max-width:800px;padding:4px 0;}
+  .pu-slot{display:flex;align-items:center;gap:6px;font-size:11px;}
+  .pu-slot .icon{font-size:18px;}
+  .pu-slot .name{letter-spacing:1px;min-width:60px;}
+  .pu-slot .cooldown{color:#555;font-size:10px;}
+  .pu-slot.right{flex-direction:row-reverse;text-align:right;}
+
+  canvas{display:block;width:100%;height:auto;border:2px solid #fff;background:#000;touch-action:none;}
+
+  /* touch controls */
+  .touch-controls{display:none;width:100%;max-width:800px;gap:8px;}
+  @media(pointer:coarse){.touch-controls{display:flex;}}
+  .tc-group{display:flex;flex:1;gap:6px;}
+  .tc-group.right{flex-direction:row-reverse;}
+  .touch-btn{flex:1;height:60px;background:#111;border:2px solid #555;font-size:20px;cursor:pointer;touch-action:manipulation;user-select:none;display:flex;align-items:center;justify-content:center;}
+  .touch-btn:active{background:#333;}
+  .touch-btn.pu{border-color:#ff0;font-size:14px;letter-spacing:1px;}
+
+  .gfooter{display:flex;justify-content:space-between;align-items:center;width:100%;max-width:800px;}
+  .gfooter-btn{padding:6px 14px;border:2px solid #fff;background:#000;color:#fff;font-family:monospace;font-size:11px;letter-spacing:2px;cursor:pointer;touch-action:manipulation;}
+  .gfooter-btn:hover,.gfooter-btn:active{background:#fff;color:#000;}
+  .gfooter-hint{font-size:10px;color:#444;}
+
+  /* win */
+  #win-title{font-size:clamp(36px,10vw,52px);font-weight:900;letter-spacing:6px;}
+  #win-score{font-size:18px;color:#888;}
+  .win-btns{display:flex;gap:12px;}
+  .win-btn{padding:12px 22px;font-family:monospace;font-size:12px;letter-spacing:2px;cursor:pointer;border:2px solid #fff;}
+  #wbtn-rematch{background:#ff0;color:#000;border-color:#ff0;}
+  #wbtn-rematch:hover{background:#cc0;}
+  #wbtn-menu{background:#000;color:#fff;}
+  #wbtn-menu:hover{background:#fff;color:#000;}
+
+  /* active power-up flash */
+  .pu-active .name{color:#ff0;}
+</style>
+</head>
+<body>
+
+<!-- MENU -->
+<div id="screen-menu" class="screen active">
+  <h1>⚡ POWER-UP</h1>
+  <p class="sub">LOCAL 2 PLAYER</p>
+  <div class="menu-btns">
+    <button class="mbtn solid" onclick="startGame()">START GAME</button>
+    <a class="mbtn outline" href="index.html">← BACK</a>
+  </div>
+  <div class="controls-hint">
+    LEFT: W/S to move &nbsp;|&nbsp; Q to use power-up<br>
+    RIGHT: ↑/↓ to move &nbsp;|&nbsp; ENTER to use power-up<br>
+    SPACE to pause
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="screen-game" class="screen">
+  <div class="scoreboard">
+    <div class="score-box">
+      <div id="score-l" class="score-num">0</div>
+      <div class="score-lbl">LEFT</div>
+    </div>
+    <div id="g-status">PRESS SPACE</div>
+    <div class="score-box">
+      <div id="score-r" class="score-num">0</div>
+      <div class="score-lbl">RIGHT</div>
+    </div>
+  </div>
+
+  <!-- Power-up status bars -->
+  <div class="pu-bar">
+    <div class="pu-slot" id="pu-left">
+      <span class="icon" id="pu-left-icon">—</span>
+      <div>
+        <div class="name" id="pu-left-name">NO POWER-UP</div>
+        <div class="cooldown" id="pu-left-cd"></div>
+      </div>
+    </div>
+    <div class="pu-slot right" id="pu-right">
+      <span class="icon" id="pu-right-icon">—</span>
+      <div>
+        <div class="name" id="pu-right-name">NO POWER-UP</div>
+        <div class="cooldown" id="pu-right-cd"></div>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="canvas" width="760" height="480"></canvas>
+
+  <!-- Mobile touch controls -->
+  <div class="touch-controls">
+    <div class="tc-group">
+      <button class="touch-btn" id="tl-up">▲</button>
+      <button class="touch-btn" id="tl-down">▼</button>
+      <button class="touch-btn pu" id="tl-pu">⚡Q</button>
+    </div>
+    <div class="tc-group right">
+      <button class="touch-btn" id="tr-up">▲</button>
+      <button class="touch-btn" id="tr-down">▼</button>
+      <button class="touch-btn pu" id="tr-pu">⚡↵</button>
+    </div>
+  </div>
+
+  <div class="gfooter">
+    <button class="gfooter-btn" onclick="goMenu()">← MENU</button>
+    <span class="gfooter-hint" id="kb-hint">W/S Q &nbsp;|&nbsp; ↑/↓ ENTER &nbsp;|&nbsp; SPACE pause</span>
+  </div>
+</div>
+
+<!-- WIN -->
+<div id="screen-win" class="screen">
+  <div id="win-title"></div>
+  <div id="win-score"></div>
+  <div class="win-btns">
+    <button class="win-btn" id="wbtn-rematch" onclick="startGame()">REMATCH</button>
+    <button class="win-btn" id="wbtn-menu"    onclick="goMenu()">MENU</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+//  Constants
+// ════════════════════════════════════════════════════════
+const W=760, H=480, PW=12, PH=80, BS=10, WIN=7, TICK=1000/60;
+
+// ── Power-up definitions ─────────────────────────────────
+const POWERUPS = [
+  { id:'big',     icon:'🔷', name:'BIG PADDLE',  color:'#44f', duration:6000,
+    desc:'Your paddle grows massive' },
+  { id:'small',   icon:'🔺', name:'SHRINK FOE',  color:'#f44', duration:6000,
+    desc:'Enemy paddle shrinks' },
+  { id:'fast',    icon:'⚡', name:'SPEED BALL',  color:'#ff0', duration:5000,
+    desc:'Ball speed doubles' },
+  { id:'slow',    icon:'🐢', name:'SLOW FOE',    color:'#0af', duration:5000,
+    desc:'Enemy moves slower' },
+  { id:'multi',   icon:'🎱', name:'MULTI BALL',  color:'#f0f', duration:7000,
+    desc:'2 extra balls appear' },
+  { id:'curve',   icon:'🌀', name:'CURVE BALL',  color:'#fa0', duration:4000,
+    desc:'Ball curves wildly' },
+  { id:'invis',   icon:'👻', name:'INVISIBLE',   color:'#888', duration:4000,
+    desc:'Ball becomes invisible' },
+  { id:'reverse', icon:'🔄', name:'REVERSE',     color:'#0f8', duration:4000,
+    desc:"Enemy controls reversed" },
+];
+
+// ════════════════════════════════════════════════════════
+//  State
+// ════════════════════════════════════════════════════════
+const canvas  = document.getElementById('canvas');
+const ctx     = canvas.getContext('2d');
+
+let running=false, paused=true, rafId=null;
+let accumulator=0, lastTick=0;
+let scoreL=0, scoreR=0;
+
+// Paddles
+let lY, rY;
+const BASE_PH = PH;
+let lPH, rPH;  // current paddle heights
+
+// Balls (array for multi-ball)
+let balls = [];
+
+// Power-up state per player: { item, timeLeft, cooldown }
+let puL = { item:null, timeLeft:0, cooldown:0 };
+let puR = { item:null, timeLeft:0, cooldown:0 };
+
+// Active effects
+let effects = {
+  lBig:0, rBig:0,       // big paddle timers
+  lSmall:0, rSmall:0,   // small paddle (applied to enemy)
+  fastBall:0,           // fast ball timer
+  lSlow:0, rSlow:0,     // slow movement timers
+  lReverse:0, rReverse:0, // reversed controls timers
+  invisible:0,          // ball invisible timer
+  curve:0,              // curve ball timer (stores direction)
+};
+
+// Power-up pickup items on field
+let pickups = [];     // { x, y, pu, timer }
+let nextPickupTime = 0;
+
+const keys = {};
+const touch = { lUp:false,lDown:false,lPu:false, rUp:false,rDown:false,rPu:false };
+
+// ════════════════════════════════════════════════════════
+//  UI
+// ════════════════════════════════════════════════════════
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function setGStatus(msg){ document.getElementById('g-status').textContent=msg; }
+
+// ════════════════════════════════════════════════════════
+//  Input
+// ════════════════════════════════════════════════════════
+document.addEventListener('keydown', e=>{
+  keys[e.key]=true;
+  if(e.key===' '){ e.preventDefault(); togglePause(); }
+  if(e.key==='q'||e.key==='Q') activatePowerup('L');
+  if(e.key==='Enter')           activatePowerup('R');
+});
+document.addEventListener('keyup', e=>{ keys[e.key]=false; });
+
+// Touch
+function setupTouch(){
+  const map = [
+    ['tl-up',   ()=>touch.lUp=true,   ()=>touch.lUp=false],
+    ['tl-down', ()=>touch.lDown=true, ()=>touch.lDown=false],
+    ['tl-pu',   ()=>activatePowerup('L'), null],
+    ['tr-up',   ()=>touch.rUp=true,   ()=>touch.rUp=false],
+    ['tr-down', ()=>touch.rDown=true, ()=>touch.rDown=false],
+    ['tr-pu',   ()=>activatePowerup('R'), null],
+  ];
+  map.forEach(([id,on,off])=>{
+    const el=document.getElementById(id);
+    ['touchstart','mousedown'].forEach(ev=>el.addEventListener(ev,e=>{e.preventDefault();on();},{passive:false}));
+    if(off) ['touchend','touchcancel','mouseup'].forEach(ev=>el.addEventListener(ev,off));
+  });
+}
+setupTouch();
+
+if(window.matchMedia('(pointer:coarse)').matches)
+  document.getElementById('kb-hint').style.display='none';
+
+// ════════════════════════════════════════════════════════
+//  Game start / reset
+// ════════════════════════════════════════════════════════
+function startGame(){
+  scoreL=0; scoreR=0;
+  resetRound();
+  document.getElementById('score-l').textContent='0';
+  document.getElementById('score-r').textContent='0';
+  show('screen-game');
+  cancelAnimationFrame(rafId);
+  lastTick=performance.now(); accumulator=0;
+  rafId=requestAnimationFrame(loop);
+}
+
+function resetRound(){
+  lY=H/2-PH/2; rY=H/2-PH/2;
+  lPH=BASE_PH; rPH=BASE_PH;
+  balls=[makeBall(Math.random()<0.5?1:-1)];
+  pickups=[];
+  nextPickupTime=Date.now()+3000;
+  // Reset effects
+  Object.keys(effects).forEach(k=>effects[k]=0);
+  // Keep power-up items but reset timers
+  puL={item:randomPU(),timeLeft:0,cooldown:0};
+  puR={item:randomPU(),timeLeft:0,cooldown:0};
+  paused=true; running=true;
+  setGStatus('PRESS SPACE');
+  updatePUDisplay();
+}
+
+function goMenu(){
+  running=false; cancelAnimationFrame(rafId);
+  show('screen-menu');
+}
+
+function randomPU(){
+  return POWERUPS[Math.floor(Math.random()*POWERUPS.length)];
+}
+
+function makeBall(dir){
+  const a=(Math.random()*0.5-0.25), spd=5;
+  return{
+    x:W/2-BS/2, y:H/2-BS/2,
+    vx:dir*spd*Math.cos(a), vy:spd*Math.sin(a),
+    spd, ghost:false
+  };
+}
+
+// ════════════════════════════════════════════════════════
+//  Power-up activation
+// ════════════════════════════════════════════════════════
+function activatePowerup(side){
+  if(!running||paused) return;
+  const pu = side==='L' ? puL : puR;
+  if(!pu.item || pu.timeLeft>0 || pu.cooldown>0) return;
+
+  const item = pu.item;
+  pu.timeLeft = item.duration;
+  pu.cooldown = 0;
+
+  applyEffect(item.id, side);
+  // Give new power-up after use (with cooldown)
+  setTimeout(()=>{
+    pu.item = randomPU();
+    pu.cooldown = 3000;
+    setTimeout(()=>{ pu.cooldown=0; updatePUDisplay(); }, 3000);
+    updatePUDisplay();
+  }, item.duration);
+  updatePUDisplay();
+}
+
+function applyEffect(id, side){
+  const isL = side==='L';
+  switch(id){
+    case 'big':
+      if(isL) effects.lBig=6000; else effects.rBig=6000;
+      break;
+    case 'small': // shrink enemy
+      if(isL) effects.rSmall=6000; else effects.lSmall=6000;
+      break;
+    case 'fast':
+      effects.fastBall=5000;
+      balls.forEach(b=>{ b.spd=Math.min(b.spd*2,20); const s=b.spd/Math.sqrt(b.vx**2+b.vy**2); b.vx*=s; b.vy*=s; });
+      break;
+    case 'slow':
+      if(isL) effects.rSlow=5000; else effects.lSlow=5000;
+      break;
+    case 'multi':
+      // Add 2 extra balls
+      balls.push(makeBall(1), makeBall(-1));
+      setTimeout(()=>{
+        if(balls.length>1) balls.splice(1, balls.length-1);
+      }, 7000);
+      break;
+    case 'curve':
+      effects.curve = isL ? 4000 : -4000;
+      break;
+    case 'invis':
+      effects.invisible=4000;
+      balls.forEach(b=>b.ghost=true);
+      setTimeout(()=>{ balls.forEach(b=>b.ghost=false); effects.invisible=0; },4000);
+      break;
+    case 'reverse':
+      if(isL) effects.rReverse=4000; else effects.lReverse=4000;
+      break;
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  Main loop
+// ════════════════════════════════════════════════════════
+function loop(now){
+  if(!running){ draw(); return; }
+  const dt=Math.min(now-lastTick,100); lastTick=now;
+  if(!paused){
+    accumulator+=dt;
+    while(accumulator>=TICK){ tick(TICK); accumulator-=TICK; }
+    // Decay effect timers
+    decayEffects(dt);
+  }
+  draw();
+  rafId=requestAnimationFrame(loop);
+}
+
+function decayEffects(dt){
+  const keys2=['lBig','rBig','lSmall','rSmall','fastBall','lSlow','rSlow','lReverse','rReverse','invisible'];
+  keys2.forEach(k=>{ if(effects[k]>0){ effects[k]-=dt; if(effects[k]<=0){ effects[k]=0; onEffectEnd(k); } } });
+  if(typeof effects.curve==='number'&&effects.curve!==0){
+    const sign=Math.sign(effects.curve);
+    effects.curve-=sign*dt;
+    if(Math.sign(effects.curve)!==sign) effects.curve=0;
+  }
+  // PU timers
+  if(puL.timeLeft>0) puL.timeLeft=Math.max(0,puL.timeLeft-dt);
+  if(puR.timeLeft>0) puR.timeLeft=Math.max(0,puR.timeLeft-dt);
+  updatePUDisplay();
+}
+
+function onEffectEnd(k){
+  if(k==='fastBall'){
+    balls.forEach(b=>{ const s=5/Math.sqrt(b.vx**2+b.vy**2); b.vx*=s; b.vy*=s; b.spd=5; });
+  }
+}
+
+function togglePause(){
+  if(!running) return;
+  paused=!paused;
+  setGStatus(paused?'PAUSED':'');
+}
+
+// ════════════════════════════════════════════════════════
+//  Tick
+// ════════════════════════════════════════════════════════
+function tick(dt){
+  // Paddle heights
+  lPH = BASE_PH * (effects.lBig>0?1.8:1) * (effects.lSmall>0?0.5:1);
+  rPH = BASE_PH * (effects.rBig>0?1.8:1) * (effects.rSmall>0?0.5:1);
+  lPH = Math.round(lPH); rPH = Math.round(rPH);
+
+  // Movement
+  const lSpd = effects.lSlow>0 ? 3 : 6;
+  const rSpd = effects.rSlow>0 ? 3 : 6;
+  const lRev = effects.lReverse>0;
+  const rRev = effects.rReverse>0;
+
+  const lUp  = keys['w']||keys['W']||touch.lUp;
+  const lDn  = keys['s']||keys['S']||touch.lDown;
+  const rUp  = keys['ArrowUp']  ||touch.rUp;
+  const rDn  = keys['ArrowDown']||touch.rDown;
+
+  if((lRev?lDn:lUp) && lY>0)       lY-=lSpd;
+  if((lRev?lUp:lDn) && lY<H-lPH)   lY+=lSpd;
+  if((rRev?rDn:rUp) && rY>0)        rY-=rSpd;
+  if((rRev?rUp:rDn) && rY<H-rPH)   rY+=rSpd;
+
+  // Clamp
+  lY=Math.max(0,Math.min(H-lPH,lY));
+  rY=Math.max(0,Math.min(H-rPH,rY));
+
+  // Curve effect on balls
+  if(effects.curve!==0){
+    const dir=Math.sign(effects.curve);
+    balls.forEach(b=>{ b.vy+=dir*0.08; });
+  }
+
+  // Move balls
+  balls.forEach((b,i)=>{
+    b.x+=b.vx; b.y+=b.vy;
+
+    // Wall bounce
+    if(b.y<=0)     { b.y=0;    b.vy= Math.abs(b.vy); }
+    if(b.y+BS>=H)  { b.y=H-BS; b.vy=-Math.abs(b.vy); }
+
+    // Paddle hit L
+    if(b.x<20+PW && b.x+BS>20 && b.y+BS>lY && b.y<lY+lPH && b.vx<0){
+      const rel=(b.y+BS/2-lY)/lPH;
+      const ang=(rel-0.5)*Math.PI*0.6;
+      b.spd=Math.min(b.spd+0.3,18);
+      b.vx= b.spd*Math.cos(ang);
+      b.vy= b.spd*Math.sin(ang);
+      b.x=20+PW;
+    }
+    // Paddle hit R
+    if(b.x+BS>W-20-PW && b.x<W-20 && b.y+BS>rY && b.y<rY+rPH && b.vx>0){
+      const rel=(b.y+BS/2-rY)/rPH;
+      const ang=(rel-0.5)*Math.PI*0.6;
+      b.spd=Math.min(b.spd+0.3,18);
+      b.vx=-b.spd*Math.cos(ang);
+      b.vy= b.spd*Math.sin(ang);
+      b.x=W-20-PW-BS;
+    }
+
+    // Scoring
+    if(b.x+BS<0){ scoreR++; balls.splice(i,1); checkWinOrReset(); }
+    if(b.x>W)   { scoreL++; balls.splice(i,1); checkWinOrReset(); }
+  });
+
+  // Pickup spawning
+  if(Date.now()>nextPickupTime && pickups.length<3){
+    spawnPickup();
+    nextPickupTime=Date.now()+5000+Math.random()*5000;
+  }
+
+  // Pickup collection
+  pickups=pickups.filter(p=>{
+    // Check collision with any ball
+    for(const b of balls){
+      if(b.x+BS>p.x-12&&b.x<p.x+12&&b.y+BS>p.y-12&&b.y<p.y+12){
+        // Give to nearest player
+        const side = b.vx<0 ? 'L' : 'R'; // ball going left = was hit by R
+        const pu=side==='L'?puL:puR;
+        if(!pu.timeLeft&&!pu.cooldown){
+          pu.item=p.pu;
+          updatePUDisplay();
+        }
+        return false;
+      }
+    }
+    p.timer--;
+    return p.timer>0;
+  });
+}
+
+function spawnPickup(){
+  const pu=POWERUPS[Math.floor(Math.random()*POWERUPS.length)];
+  pickups.push({
+    x: 100+Math.random()*(W-200),
+    y: 50+Math.random()*(H-100),
+    pu, timer:300  // ~5 seconds at 60fps
+  });
+}
+
+function checkWinOrReset(){
+  document.getElementById('score-l').textContent=scoreL;
+  document.getElementById('score-r').textContent=scoreR;
+  if(balls.length===0){
+    if(scoreL>=WIN||scoreR>=WIN){ running=false; cancelAnimationFrame(rafId); showWin(); return; }
+    resetRound();
+  }
+}
+
+function showWin(){
+  const winner = scoreL>=WIN?'LEFT':'RIGHT';
+  document.getElementById('win-title').textContent=winner+' WINS!';
+  document.getElementById('win-score').textContent=scoreL+' — '+scoreR;
+  show('screen-win');
+}
+
+// ════════════════════════════════════════════════════════
+//  Power-up display
+// ════════════════════════════════════════════════════════
+function updatePUDisplay(){
+  function update(slot, pu, iconId, nameId, cdId){
+    if(!pu.item){ document.getElementById(iconId).textContent='—'; document.getElementById(nameId).textContent='NO POWER-UP'; document.getElementById(cdId).textContent=''; slot.classList.remove('pu-active'); return; }
+    document.getElementById(iconId).textContent=pu.item.icon;
+    if(pu.timeLeft>0){
+      document.getElementById(nameId).textContent='ACTIVE!';
+      document.getElementById(cdId).textContent=(pu.timeLeft/1000).toFixed(1)+'s';
+      slot.classList.add('pu-active');
+    } else if(pu.cooldown>0){
+      document.getElementById(nameId).textContent='RECHARGING';
+      document.getElementById(cdId).textContent=(pu.cooldown/1000).toFixed(1)+'s';
+      slot.classList.remove('pu-active');
+    } else {
+      document.getElementById(nameId).textContent=pu.item.name;
+      document.getElementById(cdId).textContent='READY — press Q';
+      slot.classList.remove('pu-active');
+    }
+  }
+  update(document.getElementById('pu-left'),  puL,'pu-left-icon', 'pu-left-name', 'pu-left-cd');
+  update(document.getElementById('pu-right'), puR,'pu-right-icon','pu-right-name','pu-right-cd');
+  // Fix right slot ready text
+  const rcd=document.getElementById('pu-right-cd');
+  if(rcd.textContent==='READY — press Q') rcd.textContent='READY — press ENTER';
+}
+
+// ════════════════════════════════════════════════════════
+//  Draw
+// ════════════════════════════════════════════════════════
+function draw(){
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+
+  // Center line
+  ctx.setLineDash([8,12]); ctx.strokeStyle='#222'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Paddles
+  // Left — color based on active effect
+  ctx.fillStyle = effects.lBig>0?'#44f': effects.lSmall>0?'#f44': effects.lReverse>0?'#0f8':'#fff';
+  ctx.fillRect(20, lY, PW, lPH);
+
+  ctx.fillStyle = effects.rBig>0?'#44f': effects.rSmall>0?'#f44': effects.rReverse>0?'#0f8':'#fff';
+  ctx.fillRect(W-20-PW, rY, PW, rPH);
+
+  // Balls
+  balls.forEach(b=>{
+    if(b.ghost){
+      // Flicker effect for invisible ball
+      if(Math.floor(Date.now()/200)%3!==0) return;
+      ctx.globalAlpha=0.25;
+    }
+    ctx.fillStyle='#fff';
+    if(effects.fastBall>0) ctx.fillStyle='#ff0';
+    if(effects.curve!==0)  ctx.fillStyle='#fa0';
+    ctx.fillRect(Math.round(b.x), Math.round(b.y), BS, BS);
+    ctx.globalAlpha=1;
+  });
+
+  // Pickups on field
+  pickups.forEach(p=>{
+    const pulse=0.7+0.3*Math.sin(Date.now()/200);
+    ctx.globalAlpha=pulse;
+    ctx.fillStyle=p.pu.color||'#fff';
+    ctx.fillRect(p.x-8, p.y-8, 16, 16);
+    ctx.globalAlpha=1;
+    ctx.font='14px monospace';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(p.pu.icon, p.x, p.y);
+  });
+
+  // Effect overlays (subtle tint on paddle area)
+  if(effects.lSlow>0){
+    ctx.fillStyle='rgba(0,170,255,0.15)';
+    ctx.fillRect(0,0,W/2,H);
+  }
+  if(effects.rSlow>0){
+    ctx.fillStyle='rgba(0,170,255,0.15)';
+    ctx.fillRect(W/2,0,W/2,H);
+  }
+}
+
+// Initial draw
+draw();
+</script>
+</body>
+</html>
