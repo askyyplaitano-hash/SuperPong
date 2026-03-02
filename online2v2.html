@@ -65,8 +65,9 @@ canvas{display:block;width:100%;height:auto;border:2px solid #fff;touch-action:n
 .role-hint{font-size:10px;color:#555;text-align:center;letter-spacing:2px;padding:2px;}
 /* touch controls */
 .touch-row{display:flex;width:100%;gap:8px;}
-.touch-btn{flex:1;height:60px;background:#111;border:2px solid #fff;font-size:20px;cursor:pointer;touch-action:manipulation;user-select:none;display:flex;align-items:center;justify-content:center;}
-.touch-btn:active{background:#333;}
+.touch-btn{flex:1;height:64px;background:#111;border:2px solid #fff;font-size:22px;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none;display:flex;align-items:center;justify-content:center;}
+.touch-btn:active,.touch-btn.pressed{background:#333;}
+@media(hover:hover) and (pointer:fine){.touch-row{display:none;}}
 .gfooter{display:flex;justify-content:space-between;align-items:center;width:100%;}
 .gfooter-btn{padding:6px 14px;border:2px solid #fff;background:#000;color:#fff;font-family:monospace;font-size:11px;letter-spacing:2px;cursor:pointer;touch-action:manipulation;}
 .gfooter-btn:hover,.gfooter-btn:active{background:#fff;color:#000;}
@@ -241,20 +242,12 @@ async function getNick(){
   return (snap.exists()&&snap.val().nickname)||currentUser.displayName||'Player';
 }
 
-async function getSkin(){
-  await authReady;
-  if(!currentUser) return 'default';
-  const snap=await get(ref(db,`users/${currentUser.uid}/equippedSkin`));
-  return snap.val()||'default';
-}
-
 // ── Game vars ─────────────────────────────────────────────────
-let myRole=null,myNick='Player',mySkin='default',roomId=null,players={};
+let myRole=null,myNick='Player',roomId=null,players={};
 let running=false,paused=true,rafId=null,accumulator=0,lastTick=0,rematchVotes=0,publicInterval=null;
 let leftY=H/2-PH/2,rightY=H/2-PH/2;
-let p1Off=0,p2Off=HALF,p3Off=0,p4Off=HALF; // each player's sub-offset within paddle
+let p1Off=0,p2Off=HALF,p3Off=0,p4Off=HALF;
 let ball=null,scoreL=0,scoreR=0;
-let skins={}; // {p1:'default',p2:'brick',...}
 
 // ── Input ─────────────────────────────────────────────────────
 const keys={};
@@ -264,18 +257,16 @@ document.addEventListener('keydown',e=>{
 });
 document.addEventListener('keyup',e=>delete keys[e.key]);
 const touch={up:false,dn:false};
-function setupTouch(upId,dnId){
-  const up=document.getElementById(upId),dn=document.getElementById(dnId);
-  ['touchstart','mousedown'].forEach(ev=>{
-    up.addEventListener(ev,e=>{e.preventDefault();touch.up=true;},{passive:false});
-    dn.addEventListener(ev,e=>{e.preventDefault();touch.dn=true;},{passive:false});
-  });
-  ['touchend','touchcancel','mouseup'].forEach(ev=>{
-    up.addEventListener(ev,()=>touch.up=false);
-    dn.addEventListener(ev,()=>touch.dn=false);
-  });
+function bindTouch(el,flag){
+  el.addEventListener('touchstart',e=>{e.preventDefault();touch[flag]=true;el.classList.add('pressed');},{passive:false});
+  el.addEventListener('touchend',  e=>{e.preventDefault();touch[flag]=false;el.classList.remove('pressed');},{passive:false});
+  el.addEventListener('touchcancel',()=>{touch[flag]=false;el.classList.remove('pressed');});
+  el.addEventListener('mousedown',e=>{e.preventDefault();touch[flag]=true;el.classList.add('pressed');});
+  el.addEventListener('mouseup',  ()=>{touch[flag]=false;el.classList.remove('pressed');});
+  el.addEventListener('mouseleave',()=>{touch[flag]=false;el.classList.remove('pressed');});
 }
-setupTouch('t-up','t-down');
+bindTouch(document.getElementById('t-up'),'up');
+bindTouch(document.getElementById('t-down'),'dn');
 document.getElementById('canvas').addEventListener('click',()=>togglePause());
 
 // ── DB helpers ────────────────────────────────────────────────
@@ -286,7 +277,7 @@ const chRef=id=>ref(db,`rooms2v2/${id}/chat`);
 function rand(n=6){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<n;i++)s+=c[Math.random()*c.length|0];return s;}
 
 // ── UI ────────────────────────────────────────────────────────
-function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
 function setStatus(m,c=''){const e=document.getElementById('lobby-status');e.textContent=m;e.className=c;}
 function setGS(m){document.getElementById('g-status').textContent=m;}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -308,11 +299,10 @@ window.createPrivate=async function(){
   const id=rand();
   roomId=id; myRole='p1';
   myNick=await getNick();
-  mySkin=await getSkin();
   const ownerUid=currentUser?currentUser.uid:'anon_'+rand(8);
   await set(rRef(id),{
     ownerUid,created:Date.now(),mode:'private',
-    players:{p1:{nick:myNick,uid:currentUser?.uid||'anon',skin:mySkin}},
+    players:{p1:{nick:myNick,uid:currentUser?.uid||'anon'}},
     state:null
   });
   document.getElementById('my-code').textContent=id;
@@ -341,9 +331,8 @@ async function doJoin(id){
   if(!slot){setStatus('Room is full','err');return;}
   roomId=id; myRole=slot;
   myNick=await getNick();
-  mySkin=await getSkin();
   await update(ref(db,`rooms2v2/${id}/players`),{
-    [slot]:{nick:myNick,uid:myUid||'anon',skin:mySkin}
+    [slot]:{nick:myNick,uid:myUid||'anon'}
   });
   setStatus('Joined!','ok');
   enterWaiting();
@@ -354,10 +343,9 @@ window.createPublic=async function(){
   const id=rand();
   roomId=id; myRole='p1';
   myNick=await getNick();
-  mySkin=await getSkin();
   const ownerUid=currentUser?.uid||'anon_'+rand(8);
   const now=Date.now();
-  await set(rRef(id),{ownerUid,created:now,mode:'public',players:{p1:{nick:myNick,uid:ownerUid,skin:mySkin}},state:null});
+  await set(rRef(id),{ownerUid,created:now,mode:'public',players:{p1:{nick:myNick,uid:ownerUid}},state:null});
   await set(ref(db,`public2v2/${id}`),{id,created:now,ownerUid});
   document.getElementById('my-code').textContent=id;
   document.getElementById('my-code').classList.remove('dim');
@@ -431,7 +419,6 @@ let unsubIn={p1:null,p2:null,p3:null,p4:null};
 async function beginGame(){
   const snap=await get(ref(db,`rooms2v2/${roomId}/players`));
   players=snap.val()||{};
-  skins={p1:players.p1?.skin||'default',p2:players.p2?.skin||'default',p3:players.p3?.skin||'default',p4:players.p4?.skin||'default'};
 
   scoreL=0;scoreR=0;rematchVotes=0;
   leftY=H/2-PH/2;rightY=H/2-PH/2;
@@ -573,21 +560,10 @@ function checkWin(){
   if(scoreL>=WIN||scoreR>=WIN){
     running=false;cancelAnimationFrame(rafId);
     if(myRole==='p1'){
-      awardCoins();
       set(stRef(roomId),{bx:W/2,by:H/2,bvx:0,bvy:0,bspd:0,ly:leftY,ry:rightY,sl:scoreL,sr:scoreR,paused:true,st:''});
     }
     showWin();return true;
   }return false;
-}
-async function awardCoins(){
-  if(!currentUser)return;
-  const isLeft=myRole==='p1'||myRole==='p2';
-  const won=isLeft?(scoreL>=WIN):(scoreR>=WIN);
-  const coins=won?10:3;
-  const ur=ref(db,`users/${currentUser.uid}`);
-  const snap=await get(ur);if(!snap.exists())return;
-  const cur=snap.val().coins||0;
-  await update(ur,{coins:cur+coins});
 }
 function showWin(){
   const iWon=(myRole==='p1'||myRole==='p2')?(scoreL>=WIN):(scoreR>=WIN);
@@ -656,64 +632,30 @@ document.getElementById('chat-in').addEventListener('keydown',e=>{if(e.key==='En
 const canvas=document.getElementById('canvas');
 const ctx=canvas.getContext('2d');
 
-function drawPaddle(x,topY,skinTop,skinBot,highlightHalf){
-  // Draw each half
-  drawHalf(x,topY,skinTop,highlightHalf==='top');
-  drawHalf(x,topY+HALF,skinBot,highlightHalf==='bot');
-  // divider line
-  ctx.fillStyle='#000';ctx.fillRect(x,topY+HALF-1,PW,2);
-}
-
-function drawHalf(x,y,skin,highlight){
-  ctx.save();
-  ctx.beginPath();ctx.rect(x,y,PW,HALF);ctx.clip();
-  switch(skin){
-    case 'brick':
-      ctx.fillStyle='#c84';ctx.fillRect(x,y,PW,HALF);
-      ctx.fillStyle='#000';
-      for(let row=0;row<3;row++){const ry=y+row*(HALF/3);ctx.fillRect(x,ry,PW,1);}
-      for(let row=0;row<3;row++){const ry=y+row*(HALF/3),off=row%2===0?PW/2:0;ctx.fillRect(x+off,ry,1,HALF/3);}
-      break;
-    case 'red':    ctx.fillStyle='#e33';ctx.fillRect(x,y,PW,HALF);break;
-    case 'yellow': ctx.fillStyle='#ee2';ctx.fillRect(x,y,PW,HALF);break;
-    case 'blue':   ctx.fillStyle='#33e';ctx.fillRect(x,y,PW,HALF);break;
-    case 'green':  ctx.fillStyle='#3a3';ctx.fillRect(x,y,PW,HALF);break;
-    case 'purple': ctx.fillStyle='#a3a';ctx.fillRect(x,y,PW,HALF);break;
-    case 'cloud':
-      ctx.fillStyle='#cce';ctx.fillRect(x,y,PW,HALF);
-      ctx.fillStyle='#fff';ctx.fillRect(x+1,y+2,PW-2,3);ctx.fillRect(x+1,y+7,PW-2,3);break;
-    case 'fish':
-      ctx.fillStyle='#48f';ctx.fillRect(x,y,PW,HALF);
-      ctx.fillStyle='#fff';ctx.fillRect(x+1,y+HALF/4,PW-2,1);
-      ctx.fillRect(x+1,y+HALF/2,PW-2,1);ctx.fillRect(x+1,y+3*HALF/4,PW-2,1);break;
-    case 'pencil':
-      ctx.fillStyle='#fe8';ctx.fillRect(x,y,PW,HALF-3);
-      ctx.fillStyle='#f84';ctx.fillRect(x,y+HALF-3,PW,3);
-      ctx.fillStyle='#666';ctx.fillRect(x+PW/2-1,y,2,HALF);break;
-    case 'baguette':
-      ctx.fillStyle='#e9a';ctx.fillRect(x,y,PW,HALF);
-      ctx.fillStyle='#c74';ctx.fillRect(x+2,y+2,PW-4,HALF-4);
-      ctx.fillStyle='#000';
-      for(let i=0;i<3;i++){const iy=y+4+i*(HALF/4);ctx.fillRect(x+1,iy,PW-2,1);}
-      break;
-    default: ctx.fillStyle=highlight?'#fff':'#ccc';ctx.fillRect(x,y,PW,HALF);
-  }
-  // bright border if this is MY half
-  if(highlight){ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.strokeRect(x+1,y+1,PW-2,HALF-2);}
-  ctx.restore();
-}
-
 function draw(){
   ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
   ctx.setLineDash([8,12]);ctx.strokeStyle='#333';ctx.lineWidth=2;
   ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
 
-  const lTop=myRole==='p1'?'top':myRole==='p2'?'bot':null;
-  const rTop=myRole==='p3'?'top':myRole==='p4'?'bot':null;
-  drawPaddle(20,leftY, skins.p1||'default',skins.p2||'default',lTop);
-  drawPaddle(W-20-PW,rightY,skins.p3||'default',skins.p4||'default',rTop);
+  // Left paddle — two halves
+  ctx.fillStyle='#fff';
+  ctx.fillRect(20,leftY,PW,PH);
+  // divider
+  ctx.fillStyle='#000';
+  ctx.fillRect(20,leftY+HALF-1,PW,2);
+  // Right paddle
+  ctx.fillStyle='#fff';
+  ctx.fillRect(W-20-PW,rightY,PW,PH);
+  ctx.fillStyle='#000';
+  ctx.fillRect(W-20-PW,rightY+HALF-1,PW,2);
 
-  // Ball
+  // Highlight MY half with a brighter inner stroke
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;
+  if(myRole==='p1') ctx.strokeRect(21,p1Off+1,PW-2,HALF-2);
+  if(myRole==='p2') ctx.strokeRect(21,p2Off+1,PW-2,HALF-2);
+  if(myRole==='p3') ctx.strokeRect(W-20-PW+1,p3Off+1,PW-2,HALF-2);
+  if(myRole==='p4') ctx.strokeRect(W-20-PW+1,p4Off+1,PW-2,HALF-2);
+
   if(ball){ctx.fillStyle='#fff';ctx.fillRect(Math.round(ball.x),Math.round(ball.y),BS,BS);}
 }
 draw();

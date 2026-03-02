@@ -6,17 +6,22 @@
 <title>PONG — ONLINE 1v1</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-body{background:#000;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:monospace;padding:8px;overflow:hidden;}
-.screen{display:none;flex-direction:column;align-items:center;gap:14px;width:100%;max-width:800px;}
+body{background:#000;color:#fff;display:flex;justify-content:center;align-items:flex-start;min-height:100vh;font-family:monospace;padding:8px;overflow-x:hidden;}
+
+.screen{display:none;flex-direction:column;align-items:center;gap:14px;width:100%;max-width:800px;padding-top:8px;}
 .screen.active{display:flex;}
+
 h1{font-size:clamp(36px,9vw,60px);font-weight:900;letter-spacing:8px;}
 .sub{font-size:11px;color:#555;letter-spacing:3px;margin-top:-12px;}
+
 .user-bar{display:flex;justify-content:space-between;align-items:center;width:100%;max-width:340px;padding:8px 12px;border:1px solid #222;font-size:11px;}
-.user-nick{letter-spacing:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;}
-.user-link{color:#888;font-size:10px;cursor:pointer;background:none;border:none;font-family:monospace;letter-spacing:1px;}
+.user-nick{letter-spacing:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;}
+.user-link{color:#888;font-size:10px;cursor:pointer;background:none;border:none;font-family:monospace;letter-spacing:1px;touch-action:manipulation;}
 .user-link:hover{color:#fff;}
+
+/* lobby tabs */
 .tabs{display:flex;width:100%;max-width:340px;}
-.tab{flex:1;padding:10px;text-align:center;font-family:monospace;font-size:12px;letter-spacing:2px;cursor:pointer;border:2px solid #fff;background:#000;color:#fff;}
+.tab{flex:1;padding:10px;text-align:center;font-family:monospace;font-size:12px;letter-spacing:2px;cursor:pointer;border:2px solid #fff;background:#000;color:#fff;touch-action:manipulation;}
 .tab+.tab{border-left:none;}
 .tab.active{background:#fff;color:#000;}
 .panel{width:100%;max-width:340px;border:2px solid #fff;border-top:none;padding:16px;display:flex;flex-direction:column;gap:10px;}
@@ -31,6 +36,7 @@ input[type=text]::placeholder{color:#333;font-size:11px;letter-spacing:2px;}
 .btn.outline{background:#000;color:#fff;border:2px solid #fff;}
 .btn.outline:hover,.btn.outline:active{background:#fff;color:#000;}
 .btn.sm{font-size:11px;padding:8px;}
+.btn:disabled{opacity:.4;cursor:default;}
 #room-list{display:flex;flex-direction:column;gap:6px;max-height:130px;overflow-y:auto;}
 .room-empty{font-size:11px;color:#555;text-align:center;padding:8px;}
 .room-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid #333;}
@@ -42,48 +48,66 @@ input[type=text]::placeholder{color:#333;font-size:11px;letter-spacing:2px;}
 .back-link{font-size:11px;color:#444;text-decoration:none;letter-spacing:2px;}
 .back-link:hover{color:#fff;}
 
-/* game layout */
+/* ── waiting room ──────────────────────────────── */
+.wait-box{width:100%;max-width:340px;border:2px solid #333;padding:20px;display:flex;flex-direction:column;gap:12px;align-items:center;}
+.wait-players{display:flex;flex-direction:column;gap:0;width:100%;}
+.wait-slot{padding:10px 12px;border:1px solid #222;font-size:13px;letter-spacing:1px;display:flex;justify-content:space-between;align-items:center;}
+.wait-slot+.wait-slot{border-top:none;}
+.wait-slot .role{font-size:10px;color:#555;letter-spacing:2px;}
+.wait-slot.empty .name{color:#333;}
+.wait-slot.me .name{color:#fff;}
+.wait-slot.other .name{color:#aaa;}
+.wait-slot.me .role{color:#888;}
+#wait-status{font-size:11px;color:#888;letter-spacing:2px;text-align:center;}
+#wait-code{font-size:10px;color:#555;letter-spacing:3px;}
+
+/* ── game layout ───────────────────────────────── */
 #screen-game{flex-direction:row;flex-wrap:wrap;align-items:flex-start;justify-content:center;gap:8px;padding:4px;max-width:1060px;}
 .game-main{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0;}
 .scoreboard{display:flex;justify-content:space-between;align-items:center;width:100%;}
 .score-box{text-align:center;min-width:80px;}
 .score-num{font-size:clamp(22px,5vw,44px);font-weight:900;}
-.score-lbl{font-size:10px;color:#888;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px;}
+.score-lbl{font-size:10px;color:#888;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;}
 #g-status{font-size:11px;color:#888;letter-spacing:2px;text-align:center;flex:1;padding:0 6px;}
-#canvas-wrap{width:100%;touch-action:none;}
-canvas{display:block;width:100%;height:auto;border:2px solid #fff;touch-action:none;}
-/* mobile controls — always show on touch devices */
-.touch-row{display:none;width:100%;gap:8px;}
-@media(pointer:coarse){.touch-row{display:flex;}}
-.touch-btn{flex:1;height:64px;background:#111;border:2px solid #fff;font-size:22px;cursor:pointer;touch-action:manipulation;user-select:none;display:flex;align-items:center;justify-content:center;}
-.touch-btn:active{background:#333;}
+#canvas-wrap{width:100%;touch-action:none;position:relative;}
+canvas{display:block;width:100%;height:auto;border:2px solid #fff;touch-action:none;background:#000;}
+
+/* touch controls — always visible, prominent on mobile */
+.touch-row{display:flex;width:100%;gap:8px;}
+.touch-btn{flex:1;height:64px;background:#111;border:2px solid #fff;font-size:22px;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none;display:flex;align-items:center;justify-content:center;}
+.touch-btn:active,.touch-btn.pressed{background:#333;}
+/* hide on desktop with fine pointer */
+@media(hover:hover) and (pointer:fine){.touch-row{display:none;}}
+
 .gfooter{display:flex;justify-content:space-between;align-items:center;width:100%;}
-.gfooter-btn{padding:6px 14px;border:2px solid #fff;background:#000;color:#fff;font-family:monospace;font-size:11px;letter-spacing:2px;cursor:pointer;touch-action:manipulation;}
+.gfooter-btn{padding:8px 16px;border:2px solid #fff;background:#000;color:#fff;font-family:monospace;font-size:11px;letter-spacing:2px;cursor:pointer;touch-action:manipulation;}
 .gfooter-btn:hover,.gfooter-btn:active{background:#fff;color:#000;}
 .gfooter-hint{font-size:10px;color:#444;}
 
 /* chat */
-.chat-panel{display:flex;flex-direction:column;width:200px;border:2px solid #333;flex-shrink:0;}
+.chat-panel{display:flex;flex-direction:column;width:200px;border:2px solid #333;flex-shrink:0;min-height:200px;}
 .chat-title{font-size:10px;letter-spacing:3px;padding:7px 10px;border-bottom:1px solid #333;color:#888;}
-.chat-msgs{overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:5px;min-height:150px;max-height:340px;}
+.chat-msgs{overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:5px;flex:1;min-height:120px;max-height:380px;}
 .chat-msgs::-webkit-scrollbar{width:3px;}
 .chat-msgs::-webkit-scrollbar-thumb{background:#333;}
 .chat-msg{font-size:11px;line-height:1.4;word-break:break-word;}
-.chat-msg .sndr{color:#888;font-size:10px;}
+.chat-msg .sndr{font-size:10px;color:#888;}
 .chat-msg .sndr.me{color:#fff;}
 .chat-msg .txt{color:#ccc;}
 .chat-msg.sys .txt{color:#444;font-style:italic;}
 .chat-row{display:flex;border-top:1px solid #333;}
 .chat-in{flex:1;padding:7px;background:#000;border:none;color:#fff;font-family:monospace;font-size:12px;outline:none;}
 .chat-in::placeholder{color:#333;}
-.chat-snd{padding:7px 9px;background:#fff;color:#000;border:none;font-family:monospace;font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation;}
+.chat-snd{padding:7px 10px;background:#fff;color:#000;border:none;font-family:monospace;font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation;}
 .chat-snd:hover{background:#ccc;}
-@media(max-width:680px){.chat-panel{width:100%;}.chat-msgs{max-height:80px;min-height:60px;}}
+@media(max-width:680px){
+  .chat-panel{width:100%;min-height:unset;}
+  .chat-msgs{max-height:90px;min-height:60px;}
+}
 
 /* win */
 #win-title{font-size:clamp(28px,8vw,48px);font-weight:900;letter-spacing:6px;}
 #win-score{font-size:18px;color:#888;}
-#win-coins{font-size:13px;color:#888;letter-spacing:2px;}
 .win-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
 .win-btn{padding:12px 22px;font-family:monospace;font-size:12px;letter-spacing:2px;cursor:pointer;border:2px solid #fff;touch-action:manipulation;}
 #wbtn-rematch{background:#fff;color:#000;}
@@ -107,11 +131,11 @@ canvas{display:block;width:100%;height:auto;border:2px solid #fff;touch-action:n
     <div class="tab"        id="tab-public"  onclick="switchTab('public')">PUBLIC</div>
   </div>
   <div class="panel" id="panel-private">
-    <div class="panel-label">CREATE A PRIVATE ROOM</div>
+    <div class="panel-label">CREATE A ROOM</div>
     <div class="code-box dim" id="my-code">—</div>
-    <button class="btn sm" onclick="createPrivate()">CREATE ROOM</button>
+    <button class="btn sm" id="btn-create" onclick="createPrivate()">CREATE ROOM</button>
     <button class="btn sm outline" onclick="copyCode()">COPY CODE</button>
-    <div class="panel-label" style="margin-top:4px">JOIN A PRIVATE ROOM</div>
+    <div class="panel-label" style="margin-top:4px">JOIN A ROOM</div>
     <input type="text" id="priv-input" maxlength="6" placeholder="ENTER CODE" autocomplete="off">
     <button class="btn" onclick="joinPrivate()">JOIN</button>
   </div>
@@ -123,8 +147,30 @@ canvas{display:block;width:100%;height:auto;border:2px solid #fff;touch-action:n
     <button class="btn" onclick="createPublic()">CREATE PUBLIC ROOM</button>
   </div>
   <div id="lobby-status"></div>
-  <p style="font-size:10px;color:#333;letter-spacing:1px;text-align:center">First to 7 wins &nbsp;|&nbsp; Win = 10 coins, Lose = 3 coins</p>
+  <p style="font-size:10px;color:#333;letter-spacing:1px;text-align:center">First to 7 wins</p>
   <a href="index.html" class="back-link">← BACK</a>
+</div>
+
+<!-- WAITING ROOM -->
+<div id="screen-waiting" class="screen">
+  <h1>ONLINE</h1>
+  <p class="sub">1 vs 1</p>
+  <div id="wait-code" class="sub">ROOM: —</div>
+  <div class="wait-box">
+    <div class="wait-players">
+      <div class="wait-slot empty" id="slot-host">
+        <span class="name">— waiting</span>
+        <span class="role">LEFT PADDLE</span>
+      </div>
+      <div class="wait-slot empty" id="slot-guest">
+        <span class="name">— waiting</span>
+        <span class="role">RIGHT PADDLE</span>
+      </div>
+    </div>
+    <div id="wait-status">Waiting for opponent...</div>
+    <button class="btn outline" style="max-width:200px" onclick="copyWaitCode()">COPY CODE</button>
+    <button class="btn outline" style="max-width:200px" onclick="leaveWaiting()">← LEAVE</button>
+  </div>
 </div>
 
 <!-- GAME -->
@@ -141,7 +187,9 @@ canvas{display:block;width:100%;height:auto;border:2px solid #fff;touch-action:n
         <div id="lbl-g"   class="score-lbl">—</div>
       </div>
     </div>
-    <div id="canvas-wrap"><canvas id="canvas" width="760" height="480"></canvas></div>
+    <div id="canvas-wrap">
+      <canvas id="canvas" width="760" height="480"></canvas>
+    </div>
     <div class="touch-row">
       <button class="touch-btn" id="t-up">▲</button>
       <button class="touch-btn" id="t-dn">▼</button>
@@ -165,7 +213,6 @@ canvas{display:block;width:100%;height:auto;border:2px solid #fff;touch-action:n
 <div id="screen-win" class="screen">
   <div id="win-title"></div>
   <div id="win-score"></div>
-  <div id="win-coins"></div>
   <div class="win-btns">
     <button class="win-btn" id="wbtn-rematch" onclick="requestRematch()">REMATCH</button>
     <button class="win-btn" id="wbtn-lobby"   onclick="leaveGame()">LOBBY</button>
@@ -185,57 +232,68 @@ const fbApp=initializeApp(FC), db=getDatabase(fbApp), auth=getAuth(fbApp);
 const W=760,H=480,PW=12,PH=80,BS=10,WIN=7,TICK=1000/60;
 
 // ── Auth ──────────────────────────────────────────────────────
-let currentUser=null,_ar,_ad=false;
+let currentUser=null, _ar, _ad=false;
 const authReady=new Promise(r=>{_ar=r;});
 onAuthStateChanged(auth,async user=>{
-  currentUser=user;if(!_ad){_ad=true;_ar();}
+  currentUser=user;
+  if(!_ad){_ad=true;_ar();}
   if(user){
     const s=await get(ref(db,`users/${user.uid}`));
     const nick=(s.exists()&&s.val().nickname)||user.displayName||'Player';
     document.getElementById('user-bar').style.display='flex';
     document.getElementById('bar-nick').textContent=nick;
-  } else document.getElementById('user-bar').style.display='none';
+  } else {
+    document.getElementById('user-bar').style.display='none';
+  }
 });
 document.getElementById('bar-signout').onclick=async()=>{await signOut(auth);window.location.href='auth.html';};
 
 async function getNick(){
-  await authReady;if(!currentUser)return 'Player';
+  await authReady;
+  if(!currentUser) return 'Player';
   const s=await get(ref(db,`users/${currentUser.uid}`));
   return (s.exists()&&s.val().nickname)||currentUser.displayName||'Player';
 }
-async function getSkin(){
-  await authReady;if(!currentUser)return 'default';
-  const s=await get(ref(db,`users/${currentUser.uid}/equippedSkin`));
-  return s.val()||'default';
-}
 
-// ── Game state ────────────────────────────────────────────────
-let isHost=false,roomId=null,myRole=null,myNick='Player',mySkin='default';
-let oppSkin='default';
-let running=false,paused=true,rafId=null;
-let hostY=H/2-PH/2,guestY=H/2-PH/2,myY=H/2-PH/2;
-let ball=null,scoreH=0,scoreG=0,accumulator=0,lastTick=0,rematchVotes=0,publicInterval=null;
-let unsubState=null,unsubInput=null,unsubSig=null,unsubChat=null;
+// ── State ─────────────────────────────────────────────────────
+let isHost=false, roomId=null, myRole=null, myNick='Player';
+let running=false, paused=true, rafId=null;
+let hostY=H/2-PH/2, guestY=H/2-PH/2, myY=H/2-PH/2;
+let ball=null, scoreH=0, scoreG=0, accumulator=0, lastTick=0, rematchVotes=0, publicInterval=null;
+let unsubState=null, unsubInput=null, unsubSig=null, unsubChat=null, waitUnsub=null;
 
-// ── Input ─────────────────────────────────────────────────────
+// ── Input: keyboard ───────────────────────────────────────────
 const keys={};
 document.addEventListener('keydown',e=>{
   keys[e.key]=true;
   if(e.key===' '){e.preventDefault();togglePause();}
 });
 document.addEventListener('keyup',e=>delete keys[e.key]);
+
+// ── Input: touch ──────────────────────────────────────────────
 const touch={up:false,dn:false};
-const tUp=document.getElementById('t-up'), tDn=document.getElementById('t-dn');
-['touchstart','mousedown'].forEach(ev=>{
-  tUp.addEventListener(ev,e=>{e.preventDefault();touch.up=true;},{passive:false});
-  tDn.addEventListener(ev,e=>{e.preventDefault();touch.dn=true;},{passive:false});
-});
-['touchend','touchcancel','mouseup'].forEach(ev=>{
-  tUp.addEventListener(ev,()=>touch.up=false);
-  tDn.addEventListener(ev,()=>touch.dn=false);
-});
+const tUp=document.getElementById('t-up');
+const tDn=document.getElementById('t-dn');
+
+function bindTouch(el,flag){
+  el.addEventListener('touchstart',e=>{e.preventDefault();touch[flag]=true;el.classList.add('pressed');},{passive:false});
+  el.addEventListener('touchend',  e=>{e.preventDefault();touch[flag]=false;el.classList.remove('pressed');},{passive:false});
+  el.addEventListener('touchcancel',()=>{touch[flag]=false;el.classList.remove('pressed');});
+  // also mouse for desktop testing
+  el.addEventListener('mousedown',e=>{e.preventDefault();touch[flag]=true;el.classList.add('pressed');});
+  el.addEventListener('mouseup',  ()=>{touch[flag]=false;el.classList.remove('pressed');});
+  el.addEventListener('mouseleave',()=>{touch[flag]=false;el.classList.remove('pressed');});
+}
+bindTouch(tUp,'up');
+bindTouch(tDn,'dn');
+
 document.getElementById('canvas').addEventListener('click',()=>togglePause());
-if(window.matchMedia('(pointer:coarse)').matches) document.getElementById('kb-hint').style.display='none';
+// on desktop, hide touch buttons
+if(window.matchMedia('(hover:hover) and (pointer:fine)').matches){
+  document.getElementById('kb-hint').style.display='block';
+} else {
+  document.getElementById('kb-hint').style.display='none';
+}
 
 // ── DB refs ───────────────────────────────────────────────────
 const rRef  =id=>ref(db,`rooms/${id}`);
@@ -243,9 +301,14 @@ const stRef =id=>ref(db,`rooms/${id}/state`);
 const inRef =(id,r)=>ref(db,`rooms/${id}/input/${r}`);
 const chRef =id=>ref(db,`rooms/${id}/chat`);
 function rand(n=6){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<n;i++)s+=c[Math.random()*c.length|0];return s;}
-
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+
+// ── UI ────────────────────────────────────────────────────────
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
 function setStatus(m,c=''){const e=document.getElementById('lobby-status');e.textContent=m;e.className=c;}
 function setGS(m){document.getElementById('g-status').textContent=m;}
 
@@ -254,223 +317,313 @@ window.switchTab=function(t){
     document.getElementById('tab-'+x).classList.toggle('active',t===x);
     document.getElementById('panel-'+x).style.display=t===x?'flex':'none';
   });
-  if(t==='public')refreshRooms();
+  if(t==='public') refreshRooms();
 };
-window.copyCode=function(){if(roomId)navigator.clipboard.writeText(roomId).then(()=>setStatus('Copied!','ok'));};
+window.copyCode=function(){
+  if(roomId) navigator.clipboard.writeText(roomId).then(()=>setStatus('Copied!','ok'));
+};
+window.copyWaitCode=function(){
+  if(roomId) navigator.clipboard.writeText(roomId).then(()=>{
+    document.getElementById('wait-status').textContent='Code copied!';
+  });
+};
 
-// ── Room creation ─────────────────────────────────────────────
+// ── Create private ────────────────────────────────────────────
 window.createPrivate=async function(){
+  const btn=document.getElementById('btn-create');
+  btn.disabled=true;
   await authReady;
-  const id=rand();isHost=true;myRole='host';roomId=id;
-  myNick=await getNick();mySkin=await getSkin();
+  const id=rand(); isHost=true; myRole='host'; roomId=id;
+  myNick=await getNick();
   const ownerUid=currentUser?currentUser.uid:'anon_'+rand(8);
-  await set(rRef(id),{host:'waiting',guest:null,state:null,created:Date.now(),ownerUid,hostSkin:mySkin});
+  await set(rRef(id),{
+    ownerUid, created:Date.now(), mode:'private',
+    players:{host:{nick:myNick, uid:currentUser?.uid||'anon'}},
+    state:null
+  });
   document.getElementById('my-code').textContent=id;
   document.getElementById('my-code').classList.remove('dim');
   setStatus('Room '+id+' ready!','ok');
-  const gjRef=ref(db,`rooms/${id}/guest`);
-  onValue(gjRef,s=>{if(s.val()==='joined'){off(gjRef);setStatus('Opponent joined!','ok');beginGame();}});
+  btn.disabled=false;
+  enterWaiting();
 };
 
+// ── Join private ──────────────────────────────────────────────
 window.joinPrivate=async function(){
   const id=document.getElementById('priv-input').value.trim().toUpperCase();
   if(id.length<4){setStatus('Enter a valid code','err');return;}
+  await doJoin(id);
+};
+
+async function doJoin(id){
   await authReady;
   const snap=await get(rRef(id));
   if(!snap.exists()){setStatus('Room not found','err');return;}
   const d=snap.val();
-  if(d.guest==='joined'){setStatus('Room is full','err');return;}
   const myUid=currentUser?.uid;
-  if(id===roomId||(myUid&&d.ownerUid===myUid)){setStatus("Can't join your own room",'err');return;}
-  isHost=false;myRole='guest';roomId=id;
-  myNick=await getNick();mySkin=await getSkin();
-  await update(rRef(id),{guest:'joined',guestSkin:mySkin});
-  setStatus('Joined!','ok');beginGame();
-};
+  if(myUid&&d.ownerUid===myUid){setStatus("Can't join your own room",'err');return;}
+  if(d.players?.guest){setStatus('Room is full','err');return;}
+  isHost=false; myRole='guest'; roomId=id;
+  myNick=await getNick();
+  await update(ref(db,`rooms/${id}/players`),{
+    guest:{nick:myNick, uid:myUid||'anon'}
+  });
+  // Also set the old guest field for backwards compat
+  await update(rRef(id),{guest:'joined'});
+  setStatus('Joined!','ok');
+  enterWaiting();
+}
 
+// ── Create public ─────────────────────────────────────────────
 window.createPublic=async function(){
   await authReady;
-  const id=rand();isHost=true;myRole='host';roomId=id;
-  myNick=await getNick();mySkin=await getSkin();
-  const ownerUid=currentUser?.uid||'anon_'+rand(8),now=Date.now();
-  await set(rRef(id),{host:'waiting',guest:null,state:null,created:now,ownerUid,hostSkin:mySkin});
+  const id=rand(); isHost=true; myRole='host'; roomId=id;
+  myNick=await getNick();
+  const ownerUid=currentUser?.uid||'anon_'+rand(8);
+  const now=Date.now();
+  await set(rRef(id),{
+    ownerUid, created:now, mode:'public',
+    players:{host:{nick:myNick, uid:ownerUid}},
+    state:null
+  });
   await set(ref(db,`public/${id}`),{id,created:now,ownerUid});
   document.getElementById('my-code').textContent=id;
   document.getElementById('my-code').classList.remove('dim');
   setStatus('Public room open...','ok');
   publicInterval=setInterval(()=>set(ref(db,`public/${id}/ts`),Date.now()),20000);
-  const gjRef=ref(db,`rooms/${id}/guest`);
-  onValue(gjRef,s=>{
-    if(s.val()==='joined'){off(gjRef);clearInterval(publicInterval);remove(ref(db,`public/${id}`));setStatus('Opponent joined!','ok');beginGame();}
-  });
+  enterWaiting();
 };
 
 window.refreshRooms=async function(){
-  const el=document.getElementById('room-list');el.innerHTML='<div class="room-empty">Searching...</div>';
+  const el=document.getElementById('room-list');
+  el.innerHTML='<div class="room-empty">Searching...</div>';
   const snap=await get(ref(db,'public'));
   if(!snap.exists()){el.innerHTML='<div class="room-empty">No open rooms.</div>';return;}
   const myUid=currentUser?.uid;
-  const rooms=Object.values(snap.val()||{}).filter(r=>Date.now()-r.created<120000&&r.id!==roomId&&!(myUid&&r.ownerUid===myUid));
+  const rooms=Object.values(snap.val()||{})
+    .filter(r=>Date.now()-r.created<120000&&r.id!==roomId&&!(myUid&&r.ownerUid===myUid));
   if(!rooms.length){el.innerHTML='<div class="room-empty">No open rooms.</div>';return;}
   el.innerHTML='';
   rooms.forEach(r=>{
-    const row=document.createElement('div');row.className='room-row';
+    const row=document.createElement('div'); row.className='room-row';
     row.innerHTML=`<span class="room-code">${r.id}</span><button class="join-r" onclick="joinPublicRoom('${r.id}')">JOIN</button>`;
     el.appendChild(row);
   });
 };
-window.joinPublicRoom=async function(id){
-  await authReady;
-  const snap=await get(rRef(id));
-  if(!snap.exists()){setStatus('Room gone','err');return;}
-  const d=snap.val();
-  if(d.guest==='joined'){setStatus('Room is full','err');return;}
+window.joinPublicRoom=async function(id){await doJoin(id);};
+
+// ── Waiting room ──────────────────────────────────────────────
+function enterWaiting(){
+  document.getElementById('wait-code').textContent='ROOM: '+roomId;
+  show('screen-waiting');
+  updateWaitSlots({host: myRole==='host'?{nick:myNick}:null, guest:null});
+
+  if(waitUnsub){waitUnsub();waitUnsub=null;}
+  waitUnsub=onValue(ref(db,`rooms/${roomId}/players`),snap=>{
+    const pl=snap.val()||{};
+    updateWaitSlots(pl);
+    const n=Object.keys(pl).length;
+    if(n>=2){
+      // Both players present
+      if(waitUnsub){waitUnsub();waitUnsub=null;}
+      if(publicInterval){clearInterval(publicInterval);remove(ref(db,`public/${roomId}`));}
+      document.getElementById('wait-status').textContent='Both players joined! Starting...';
+      setTimeout(()=>beginGame(pl),600);
+    } else {
+      document.getElementById('wait-status').textContent=
+        isHost ? 'Waiting for opponent...' : '1/2 joined. Waiting for host...';
+    }
+  });
+}
+
+function updateWaitSlots(pl){
   const myUid=currentUser?.uid;
-  if(id===roomId||(myUid&&d.ownerUid===myUid)){setStatus("Can't join your own room",'err');return;}
-  isHost=false;myRole='guest';roomId=id;
-  myNick=await getNick();mySkin=await getSkin();
-  await update(rRef(id),{guest:'joined',guestSkin:mySkin});
-  await remove(ref(db,`public/${id}`));
-  setStatus('Joined!','ok');beginGame();
+  // host slot
+  const hs=document.getElementById('slot-host');
+  const hp=pl.host;
+  if(!hp){
+    hs.className='wait-slot empty';
+    hs.querySelector('.name').textContent='— waiting';
+  } else if(hp.uid===myUid||myRole==='host'){
+    hs.className='wait-slot me';
+    hs.querySelector('.name').textContent=hp.nick+' (YOU)';
+  } else {
+    hs.className='wait-slot other';
+    hs.querySelector('.name').textContent=hp.nick;
+  }
+  // guest slot
+  const gs=document.getElementById('slot-guest');
+  const gp=pl.guest;
+  if(!gp){
+    gs.className='wait-slot empty';
+    gs.querySelector('.name').textContent='— waiting';
+  } else if(gp.uid===myUid||myRole==='guest'){
+    gs.className='wait-slot me';
+    gs.querySelector('.name').textContent=gp.nick+' (YOU)';
+  } else {
+    gs.className='wait-slot other';
+    gs.querySelector('.name').textContent=gp.nick;
+  }
+}
+
+window.leaveWaiting=function(){
+  if(waitUnsub){waitUnsub();waitUnsub=null;}
+  if(roomId&&myRole){
+    remove(ref(db,`rooms/${roomId}/players/${myRole}`));
+    if(myRole==='host') remove(rRef(roomId));
+  }
+  if(publicInterval){clearInterval(publicInterval);}
+  roomId=null; myRole=null;
+  show('screen-lobby'); setStatus('');
 };
 
 // ── Game ──────────────────────────────────────────────────────
-function mkBall(d){const a=(Math.random()*0.6-0.3),s=5;return{x:W/2-BS/2,y:H/2-BS/2,vx:d*s*Math.cos(a),vy:s*Math.sin(a),spd:s};}
+function mkBall(d){
+  const a=(Math.random()*0.6-0.3),s=5;
+  return{x:W/2-BS/2,y:H/2-BS/2,vx:d*s*Math.cos(a),vy:s*Math.sin(a),spd:s};
+}
 
-async function beginGame(){
-  scoreH=0;scoreG=0;rematchVotes=0;
-  myY=H/2-PH/2;hostY=H/2-PH/2;guestY=H/2-PH/2;
-  ball=mkBall(1);paused=true;running=true;
+async function beginGame(pl){
+  // pl: {host:{nick,uid}, guest:{nick,uid}} — passed from waiting room or re-fetched
+  if(!pl){
+    const snap=await get(ref(db,`rooms/${roomId}/players`));
+    pl=snap.val()||{};
+  }
+
+  scoreH=0; scoreG=0; rematchVotes=0;
+  myY=H/2-PH/2; hostY=H/2-PH/2; guestY=H/2-PH/2;
+  ball=mkBall(1); paused=true; running=true;
+
   document.getElementById('score-h').textContent='0';
   document.getElementById('score-g').textContent='0';
   document.getElementById('chat-msgs').innerHTML='';
 
-  // Fetch skins from room
-  const rSnap=await get(rRef(roomId));
-  const rd=rSnap.val()||{};
-  if(isHost){mySkin=rd.hostSkin||'default';oppSkin=rd.guestSkin||'default';}
-  else{mySkin=rd.guestSkin||'default';oppSkin=rd.hostSkin||'default';}
+  const hostNick=pl.host?.nick||'—';
+  const guestNick=pl.guest?.nick||'—';
+  document.getElementById('lbl-h').textContent=isHost?myNick+'  ◀':hostNick;
+  document.getElementById('lbl-g').textContent=isHost?guestNick:myNick+'  ▶';
 
-  document.getElementById('lbl-h').textContent=isHost?myNick:'OPPONENT';
-  document.getElementById('lbl-g').textContent=isHost?'OPPONENT':myNick;
-  setGS('PRESS SPACE');show('screen-game');
+  setGS('PRESS SPACE');
+  show('screen-game');
 
-  chatSub();chatAppend('','Game started! Say hi.',false,true);
+  chatSub();
+  chatAppend('','Game on! Say hi.',false,true);
 
+  // Listen to opponent input
   if(unsubInput){unsubInput();unsubInput=null;}
   const oppRole=isHost?'guest':'host';
   unsubInput=onValue(inRef(roomId,oppRole),s=>{
-    const y=s.val();if(y==null)return;
-    if(isHost)guestY=y;else hostY=y;
+    const y=s.val(); if(y==null) return;
+    if(isHost) guestY=y; else hostY=y;
   });
 
+  // Guest: sync from host state
   if(!isHost){
     if(unsubState){unsubState();unsubState=null;}
     unsubState=onValue(stRef(roomId),s=>{
-      const d=s.val();if(!d||!running)return;
+      const d=s.val(); if(!d||!running) return;
       ball={x:d.bx,y:d.by,vx:d.bvx,vy:d.bvy,spd:d.bspd};
       hostY=d.hy;
       if(scoreH!==d.sh||scoreG!==d.sg){scoreH=d.sh;scoreG=d.sg;updScores();}
       paused=d.paused;
-      if(d.st!=null)setGS(d.st);
+      if(d.st!=null) setGS(d.st);
       if(running&&(scoreH>=WIN||scoreG>=WIN)){running=false;cancelAnimationFrame(rafId);showWin();}
     });
   }
 
+  // Signals
   if(unsubSig){unsubSig();unsubSig=null;}
   unsubSig=onValue(ref(db,`rooms/${roomId}/signal`),s=>{
-    const v=s.val();if(!v)return;
+    const v=s.val(); if(!v) return;
     if(v==='rematch-1'&&rematchVotes===0){rematchVotes=1;document.getElementById('wbtn-rematch').textContent='WAITING...';}
-    if(v==='rematch-2')restartGame();
+    if(v==='rematch-2') restartGame();
     if(v==='bye'){running=false;cancelAnimationFrame(rafId);setGS('OPPONENT LEFT');chatAppend('','Opponent left.',false,true);}
   });
 
-  cancelAnimationFrame(rafId);lastTick=performance.now();accumulator=0;
+  cancelAnimationFrame(rafId);
+  lastTick=performance.now(); accumulator=0;
   rafId=requestAnimationFrame(loop);
 }
 
 function restartGame(){
-  scoreH=0;scoreG=0;rematchVotes=0;
-  myY=H/2-PH/2;hostY=H/2-PH/2;guestY=H/2-PH/2;
-  ball=mkBall(1);paused=true;running=true;
+  scoreH=0; scoreG=0; rematchVotes=0;
+  myY=H/2-PH/2; hostY=H/2-PH/2; guestY=H/2-PH/2;
+  ball=mkBall(1); paused=true; running=true;
   document.getElementById('score-h').textContent='0';
   document.getElementById('score-g').textContent='0';
   document.getElementById('wbtn-rematch').textContent='REMATCH';
-  setGS('PRESS SPACE');show('screen-game');
+  setGS('PRESS SPACE'); show('screen-game');
   update(rRef(roomId),{signal:null});
-  cancelAnimationFrame(rafId);lastTick=performance.now();accumulator=0;
+  cancelAnimationFrame(rafId); lastTick=performance.now(); accumulator=0;
   rafId=requestAnimationFrame(loop);
 }
 
 window.leaveGame=function(){
-  running=false;cancelAnimationFrame(rafId);
-  [unsubState,unsubInput,unsubSig,unsubChat].forEach(u=>u&&u());
-  unsubState=unsubInput=unsubSig=unsubChat=null;
-  if(roomId)update(rRef(roomId),{signal:'bye'});
+  running=false; cancelAnimationFrame(rafId);
+  [unsubState,unsubInput,unsubSig,unsubChat,waitUnsub].forEach(u=>u&&u());
+  unsubState=unsubInput=unsubSig=unsubChat=waitUnsub=null;
+  if(roomId) update(rRef(roomId),{signal:'bye'});
   clearInterval(publicInterval);
-  show('screen-lobby');setStatus('');
+  show('screen-lobby'); setStatus('');
 };
 
+// ── Loop ──────────────────────────────────────────────────────
 function loop(now){
   if(!running){draw();return;}
-  const dt=Math.min(now-lastTick,100);lastTick=now;
-  if(!paused){accumulator+=dt;while(accumulator>=TICK){tick();accumulator-=TICK;}}
+  const dt=Math.min(now-lastTick,100); lastTick=now;
+  if(!paused){accumulator+=dt; while(accumulator>=TICK){tick();accumulator-=TICK;}}
   set(inRef(roomId,myRole),myY);
   draw();
   rafId=requestAnimationFrame(loop);
 }
 
 function applyInput(){
-  const up=keys['ArrowUp']||touch.up, dn=keys['ArrowDown']||touch.dn;
-  if(up&&myY>0)myY-=6;if(dn&&myY<H-PH)myY+=6;
-  if(isHost)hostY=myY;else guestY=myY;
+  const up=keys['ArrowUp']  ||touch.up;
+  const dn=keys['ArrowDown']||touch.dn;
+  if(up&&myY>0)     myY-=6;
+  if(dn&&myY<H-PH)  myY+=6;
+  if(isHost) hostY=myY; else guestY=myY;
 }
 
 function tick(){
-  applyInput();if(!isHost)return;
-  ball.x+=ball.vx;ball.y+=ball.vy;
-  if(ball.y<=0){ball.y=0;ball.vy=Math.abs(ball.vy);}
-  if(ball.y+BS>=H){ball.y=H-BS;ball.vy=-Math.abs(ball.vy);}
+  applyInput(); if(!isHost) return;
+  ball.x+=ball.vx; ball.y+=ball.vy;
+  if(ball.y<=0)    {ball.y=0;    ball.vy= Math.abs(ball.vy);}
+  if(ball.y+BS>=H) {ball.y=H-BS; ball.vy=-Math.abs(ball.vy);}
   function hit(px,py,side){
     if(ball.x+BS>px&&ball.x<px+PW&&ball.y+BS>py&&ball.y<py+PH){
-      const rel=(ball.y+BS/2-py)/PH,ang=(rel-.5)*Math.PI*.6;
+      const rel=(ball.y+BS/2-py)/PH, ang=(rel-.5)*Math.PI*.6;
       ball.spd=Math.min(ball.spd+.3,15);
-      ball.vx=side*ball.spd*Math.cos(ang);ball.vy=ball.spd*Math.sin(ang);
+      ball.vx=side*ball.spd*Math.cos(ang); ball.vy=ball.spd*Math.sin(ang);
       ball.x=side===1?px+PW:px-BS;
     }
   }
-  hit(20,hostY,1);hit(W-20-PW,guestY,-1);
-  if(ball.x+BS<0){scoreG++;if(!checkWin()){ball=mkBall(1);paused=true;setGS('PRESS SPACE');}updScores();}
-  if(ball.x>W)  {scoreH++;if(!checkWin()){ball=mkBall(-1);paused=true;setGS('PRESS SPACE');}updScores();}
+  hit(20,hostY,1); hit(W-20-PW,guestY,-1);
+  if(ball.x+BS<0){scoreG++;if(!checkWin()){ball=mkBall(1); paused=true;setGS('PRESS SPACE');}updScores();}
+  if(ball.x>W)   {scoreH++;if(!checkWin()){ball=mkBall(-1);paused=true;setGS('PRESS SPACE');}updScores();}
   set(stRef(roomId),{bx:ball.x,by:ball.y,bvx:ball.vx,bvy:ball.vy,bspd:ball.spd,hy:hostY,sh:scoreH,sg:scoreG,paused,st:document.getElementById('g-status').textContent});
 }
 
 function togglePause(){
-  if(!running)return;paused=!paused;setGS(paused?'PAUSED':'');
-  if(isHost)set(stRef(roomId),{bx:ball.x,by:ball.y,bvx:ball.vx,bvy:ball.vy,bspd:ball.spd,hy:hostY,sh:scoreH,sg:scoreG,paused,st:paused?'PAUSED':''});
+  if(!running) return;
+  paused=!paused; setGS(paused?'PAUSED':'');
+  if(isHost) set(stRef(roomId),{bx:ball.x,by:ball.y,bvx:ball.vx,bvy:ball.vy,bspd:ball.spd,hy:hostY,sh:scoreH,sg:scoreG,paused,st:paused?'PAUSED':''});
 }
-function updScores(){document.getElementById('score-h').textContent=scoreH;document.getElementById('score-g').textContent=scoreG;}
+function updScores(){
+  document.getElementById('score-h').textContent=scoreH;
+  document.getElementById('score-g').textContent=scoreG;
+}
 function checkWin(){
   if(scoreH>=WIN||scoreG>=WIN){
-    running=false;cancelAnimationFrame(rafId);
+    running=false; cancelAnimationFrame(rafId);
     set(stRef(roomId),{bx:W/2,by:H/2,bvx:0,bvy:0,bspd:0,hy:hostY,sh:scoreH,sg:scoreG,paused:true,st:''});
-    const won=isHost?(scoreH>=WIN):(scoreG>=WIN);
-    awardCoins(won);
-    showWin(won);return true;
-  }return false;
+    showWin(); return true;
+  } return false;
 }
-async function awardCoins(won){
-  if(!currentUser)return;
-  const coins=won?10:3;
-  const ur=ref(db,`users/${currentUser.uid}`);
-  const snap=await get(ur);if(!snap.exists())return;
-  const cur=snap.val().coins||0;
-  await update(ur,{coins:cur+coins});
-}
-function showWin(won){
-  document.getElementById('win-title').textContent=won?'YOU WIN!':'YOU LOSE!';
+function showWin(){
+  const iWon=isHost?(scoreH>=WIN):(scoreG>=WIN);
+  document.getElementById('win-title').textContent=iWon?'YOU WIN!':'YOU LOSE!';
   document.getElementById('win-score').textContent=scoreH+' — '+scoreG;
-  document.getElementById('win-coins').textContent='+'+(won?10:3)+' COINS';
   document.getElementById('wbtn-rematch').textContent='REMATCH';
   show('screen-win');
 }
@@ -478,98 +631,54 @@ window.requestRematch=function(){
   rematchVotes++;
   const val=rematchVotes>=2?'rematch-2':'rematch-1';
   update(rRef(roomId),{signal:val});
-  if(rematchVotes>=2)restartGame();
+  if(rematchVotes>=2) restartGame();
   else document.getElementById('wbtn-rematch').textContent='WAITING...';
 };
 
 // ── Chat ──────────────────────────────────────────────────────
 let lastCK=null;
 function chatSub(){
-  if(unsubChat){unsubChat();unsubChat=null;}lastCK=null;
+  if(unsubChat){unsubChat();unsubChat=null;} lastCK=null;
   const t0=Date.now();
   unsubChat=onValue(chRef(roomId),s=>{
-    if(!s.exists())return;
+    if(!s.exists()) return;
     s.forEach(c=>{
       const k=c.key,d=c.val();
-      if(lastCK&&k<=lastCK)return;lastCK=k;
-      if((d.ts||0)<t0-2000)return;
+      if(lastCK&&k<=lastCK) return; lastCK=k;
+      if((d.ts||0)<t0-2000) return;
       chatAppend(d.sender,d.text,d.uid===currentUser?.uid);
     });
   });
 }
 function chatAppend(sender,text,isMe,sys=false){
   const box=document.getElementById('chat-msgs');
-  const div=document.createElement('div');div.className='chat-msg'+(sys?' sys':'');
-  if(!sys)div.innerHTML=`<div class="sndr${isMe?' me':''}">${esc(sender)}</div><div class="txt">${esc(text)}</div>`;
+  const div=document.createElement('div');
+  div.className='chat-msg'+(sys?' sys':'');
+  if(!sys) div.innerHTML=`<div class="sndr${isMe?' me':''}">${esc(sender)}</div><div class="txt">${esc(text)}</div>`;
   else div.innerHTML=`<div class="txt">${esc(text)}</div>`;
-  box.appendChild(div);box.scrollTop=box.scrollHeight;
+  box.appendChild(div); box.scrollTop=box.scrollHeight;
 }
 window.sendChat=function(){
-  const inp=document.getElementById('chat-in');const t=inp.value.trim();
-  if(!t||!roomId)return;inp.value='';
+  const inp=document.getElementById('chat-in'); const t=inp.value.trim();
+  if(!t||!roomId) return; inp.value='';
   push(chRef(roomId),{sender:myNick,text:t,uid:currentUser?.uid||'anon',ts:Date.now()});
 };
-document.getElementById('chat-in').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();window.sendChat();}});
+document.getElementById('chat-in').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();window.sendChat();}
+});
 
-// ── Draw + skin renderer ──────────────────────────────────────
+// ── Draw ──────────────────────────────────────────────────────
 const canvas=document.getElementById('canvas');
 const ctx=canvas.getContext('2d');
-
-function drawPaddle(x,y,skin){
-  ctx.save();
-  ctx.beginPath();ctx.rect(x,y,PW,PH);ctx.clip();
-  switch(skin){
-    case 'brick':
-      ctx.fillStyle='#c84';ctx.fillRect(x,y,PW,PH);
-      ctx.fillStyle='#000';
-      for(let r=0;r<5;r++){const ry=y+r*16;ctx.fillRect(x,ry,PW,1);}
-      for(let r=0;r<5;r++){const ry=y+r*16,off=r%2===0?PW/2:0;ctx.fillRect(x+off,ry,1,16);}
-      break;
-    case 'red':    ctx.fillStyle='#e33';ctx.fillRect(x,y,PW,PH);break;
-    case 'yellow': ctx.fillStyle='#ee2';ctx.fillRect(x,y,PW,PH);break;
-    case 'blue':   ctx.fillStyle='#33e';ctx.fillRect(x,y,PW,PH);break;
-    case 'green':  ctx.fillStyle='#3a3';ctx.fillRect(x,y,PW,PH);break;
-    case 'purple': ctx.fillStyle='#a3a';ctx.fillRect(x,y,PW,PH);break;
-    case 'cyan':   ctx.fillStyle='#0cc';ctx.fillRect(x,y,PW,PH);break;
-    case 'orange': ctx.fillStyle='#f70';ctx.fillRect(x,y,PW,PH);break;
-    case 'cloud':
-      ctx.fillStyle='#aad';ctx.fillRect(x,y,PW,PH);
-      ctx.fillStyle='#fff';
-      for(let r=0;r<4;r++){ctx.fillRect(x+1,y+r*20+3,PW-2,4);ctx.fillRect(x+1,y+r*20+10,PW-2,4);}
-      break;
-    case 'fish':
-      ctx.fillStyle='#48f';ctx.fillRect(x,y,PW,PH);
-      ctx.fillStyle='#6af';
-      for(let r=0;r<5;r++)ctx.fillRect(x+1,y+r*16+2,PW-2,8);
-      ctx.fillStyle='#fff';ctx.fillRect(x+PW/2-1,y+2,2,PH-4);
-      break;
-    case 'pencil':
-      ctx.fillStyle='#fe8';ctx.fillRect(x,y,PW,PH-6);
-      ctx.fillStyle='#f84';ctx.fillRect(x,y+PH-6,PW,4);
-      ctx.fillStyle='#fcc';ctx.fillRect(x+2,y+PH-2,PW-4,2);
-      ctx.fillStyle='#888';ctx.fillRect(x+PW/2-1,y,2,PH);
-      break;
-    case 'baguette':
-      ctx.fillStyle='#e9a';ctx.fillRect(x,y,PW,PH);
-      ctx.fillStyle='#c74';ctx.fillRect(x+2,y+4,PW-4,PH-8);
-      ctx.fillStyle='#000';
-      for(let r=0;r<5;r++)ctx.fillRect(x+1,y+8+r*14,PW-2,1);
-      break;
-    default:
-      ctx.fillStyle='#fff';ctx.fillRect(x,y,PW,PH);
-  }
-  ctx.restore();
-}
-
 function draw(){
-  ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
-  ctx.setLineDash([8,12]);ctx.strokeStyle='#333';ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
-  const hSkin=isHost?mySkin:oppSkin;
-  const gSkin=isHost?oppSkin:mySkin;
-  drawPaddle(20,hostY,hSkin);
-  drawPaddle(W-20-PW,guestY,gSkin);
-  if(ball){ctx.fillStyle='#fff';ctx.fillRect(Math.round(ball.x),Math.round(ball.y),BS,BS);}
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+  ctx.setLineDash([8,12]); ctx.strokeStyle='#333'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#fff';
+  ctx.fillRect(20,hostY,PW,PH);
+  ctx.fillRect(W-20-PW,guestY,PW,PH);
+  if(ball) ctx.fillRect(Math.round(ball.x),Math.round(ball.y),BS,BS);
 }
 draw();
 </script>
