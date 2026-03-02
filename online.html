@@ -5,94 +5,91 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <title>PONG — ONLINE 1v1</title>
 <style>
-  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  body{background:#000;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:monospace;padding:8px;overflow:hidden;}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{background:#000;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:monospace;padding:8px;overflow:hidden;}
+.screen{display:none;flex-direction:column;align-items:center;gap:14px;width:100%;max-width:800px;}
+.screen.active{display:flex;}
+h1{font-size:clamp(36px,9vw,60px);font-weight:900;letter-spacing:8px;}
+.sub{font-size:11px;color:#555;letter-spacing:3px;margin-top:-12px;}
+.user-bar{display:flex;justify-content:space-between;align-items:center;width:100%;max-width:340px;padding:8px 12px;border:1px solid #222;font-size:11px;}
+.user-nick{letter-spacing:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;}
+.user-link{color:#888;font-size:10px;cursor:pointer;background:none;border:none;font-family:monospace;letter-spacing:1px;}
+.user-link:hover{color:#fff;}
+.tabs{display:flex;width:100%;max-width:340px;}
+.tab{flex:1;padding:10px;text-align:center;font-family:monospace;font-size:12px;letter-spacing:2px;cursor:pointer;border:2px solid #fff;background:#000;color:#fff;}
+.tab+.tab{border-left:none;}
+.tab.active{background:#fff;color:#000;}
+.panel{width:100%;max-width:340px;border:2px solid #fff;border-top:none;padding:16px;display:flex;flex-direction:column;gap:10px;}
+.panel-label{font-size:10px;color:#888;letter-spacing:3px;}
+.code-box{font-size:26px;font-weight:900;letter-spacing:8px;text-align:center;padding:10px;border:2px solid #555;background:#111;min-height:50px;display:flex;align-items:center;justify-content:center;}
+.code-box.dim{font-size:12px;color:#555;letter-spacing:2px;font-weight:normal;}
+input[type=text]{width:100%;padding:10px;background:#111;border:2px solid #555;color:#fff;font-family:monospace;font-size:15px;letter-spacing:4px;text-transform:uppercase;text-align:center;}
+input[type=text]:focus{outline:none;border-color:#fff;}
+input[type=text]::placeholder{color:#333;font-size:11px;letter-spacing:2px;}
+.btn{width:100%;padding:11px;background:#fff;color:#000;border:none;font-family:monospace;font-size:12px;font-weight:700;letter-spacing:3px;cursor:pointer;touch-action:manipulation;}
+.btn:hover,.btn:active{background:#ccc;}
+.btn.outline{background:#000;color:#fff;border:2px solid #fff;}
+.btn.outline:hover,.btn.outline:active{background:#fff;color:#000;}
+.btn.sm{font-size:11px;padding:8px;}
+#room-list{display:flex;flex-direction:column;gap:6px;max-height:130px;overflow-y:auto;}
+.room-empty{font-size:11px;color:#555;text-align:center;padding:8px;}
+.room-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid #333;}
+.room-code{font-size:13px;letter-spacing:3px;}
+.join-r{padding:4px 12px;background:#fff;color:#000;border:none;font-family:monospace;font-size:10px;cursor:pointer;touch-action:manipulation;}
+#lobby-status{font-size:11px;letter-spacing:2px;text-align:center;min-height:16px;color:#888;}
+#lobby-status.err{color:#f55;}
+#lobby-status.ok{color:#5f5;}
+.back-link{font-size:11px;color:#444;text-decoration:none;letter-spacing:2px;}
+.back-link:hover{color:#fff;}
 
-  .screen{display:none;flex-direction:column;align-items:center;gap:16px;width:100%;max-width:800px;}
-  .screen.active{display:flex;}
-  h1{font-size:clamp(36px,9vw,60px);font-weight:900;letter-spacing:clamp(5px,2vw,10px);}
-  .sub{font-size:11px;color:#555;letter-spacing:3px;margin-top:-12px;}
+/* game layout */
+#screen-game{flex-direction:row;flex-wrap:wrap;align-items:flex-start;justify-content:center;gap:8px;padding:4px;max-width:1060px;}
+.game-main{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0;}
+.scoreboard{display:flex;justify-content:space-between;align-items:center;width:100%;}
+.score-box{text-align:center;min-width:80px;}
+.score-num{font-size:clamp(22px,5vw,44px);font-weight:900;}
+.score-lbl{font-size:10px;color:#888;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px;}
+#g-status{font-size:11px;color:#888;letter-spacing:2px;text-align:center;flex:1;padding:0 6px;}
+#canvas-wrap{width:100%;touch-action:none;}
+canvas{display:block;width:100%;height:auto;border:2px solid #fff;touch-action:none;}
+/* mobile controls — always show on touch devices */
+.touch-row{display:none;width:100%;gap:8px;}
+@media(pointer:coarse){.touch-row{display:flex;}}
+.touch-btn{flex:1;height:64px;background:#111;border:2px solid #fff;font-size:22px;cursor:pointer;touch-action:manipulation;user-select:none;display:flex;align-items:center;justify-content:center;}
+.touch-btn:active{background:#333;}
+.gfooter{display:flex;justify-content:space-between;align-items:center;width:100%;}
+.gfooter-btn{padding:6px 14px;border:2px solid #fff;background:#000;color:#fff;font-family:monospace;font-size:11px;letter-spacing:2px;cursor:pointer;touch-action:manipulation;}
+.gfooter-btn:hover,.gfooter-btn:active{background:#fff;color:#000;}
+.gfooter-hint{font-size:10px;color:#444;}
 
-  .user-bar{display:flex;justify-content:space-between;align-items:center;width:100%;max-width:340px;padding:8px 12px;border:1px solid #222;font-size:11px;}
-  .user-nick{letter-spacing:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;}
-  .user-link{color:#888;font-size:10px;letter-spacing:1px;cursor:pointer;background:none;border:none;font-family:monospace;}
-  .user-link:hover{color:#fff;}
+/* chat */
+.chat-panel{display:flex;flex-direction:column;width:200px;border:2px solid #333;flex-shrink:0;}
+.chat-title{font-size:10px;letter-spacing:3px;padding:7px 10px;border-bottom:1px solid #333;color:#888;}
+.chat-msgs{overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:5px;min-height:150px;max-height:340px;}
+.chat-msgs::-webkit-scrollbar{width:3px;}
+.chat-msgs::-webkit-scrollbar-thumb{background:#333;}
+.chat-msg{font-size:11px;line-height:1.4;word-break:break-word;}
+.chat-msg .sndr{color:#888;font-size:10px;}
+.chat-msg .sndr.me{color:#fff;}
+.chat-msg .txt{color:#ccc;}
+.chat-msg.sys .txt{color:#444;font-style:italic;}
+.chat-row{display:flex;border-top:1px solid #333;}
+.chat-in{flex:1;padding:7px;background:#000;border:none;color:#fff;font-family:monospace;font-size:12px;outline:none;}
+.chat-in::placeholder{color:#333;}
+.chat-snd{padding:7px 9px;background:#fff;color:#000;border:none;font-family:monospace;font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation;}
+.chat-snd:hover{background:#ccc;}
+@media(max-width:680px){.chat-panel{width:100%;}.chat-msgs{max-height:80px;min-height:60px;}}
 
-  .tabs{display:flex;width:100%;max-width:340px;}
-  .tab{flex:1;padding:11px;text-align:center;font-family:monospace;font-size:12px;letter-spacing:2px;cursor:pointer;border:2px solid #fff;background:#000;color:#fff;}
-  .tab+.tab{border-left:none;}
-  .tab.active{background:#fff;color:#000;}
-
-  .panel{width:100%;max-width:340px;border:2px solid #fff;border-top:none;padding:18px;display:flex;flex-direction:column;gap:12px;}
-  .panel-label{font-size:10px;color:#888;letter-spacing:3px;}
-  .code-box{font-size:28px;font-weight:900;letter-spacing:8px;text-align:center;padding:10px;border:2px solid #555;background:#111;min-height:52px;display:flex;align-items:center;justify-content:center;}
-  .code-box.dim{font-size:12px;color:#555;letter-spacing:2px;font-weight:normal;}
-  input[type=text]{width:100%;padding:10px;background:#111;border:2px solid #555;color:#fff;font-family:monospace;font-size:15px;letter-spacing:4px;text-transform:uppercase;text-align:center;}
-  input[type=text]:focus{outline:none;border-color:#fff;}
-  input[type=text]::placeholder{color:#333;font-size:11px;letter-spacing:2px;}
-  .btn{width:100%;padding:11px;background:#fff;color:#000;border:none;font-family:monospace;font-size:12px;font-weight:700;letter-spacing:3px;cursor:pointer;touch-action:manipulation;}
-  .btn:hover,.btn:active{background:#ccc;}
-  .btn.outline{background:#000;color:#fff;border:2px solid #fff;}
-  .btn.outline:hover,.btn.outline:active{background:#fff;color:#000;}
-  .btn.sm{font-size:11px;padding:8px;}
-  #room-list{display:flex;flex-direction:column;gap:6px;max-height:140px;overflow-y:auto;}
-  .room-empty{font-size:11px;color:#555;text-align:center;padding:8px;}
-  .room-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid #333;}
-  .room-code{font-size:13px;letter-spacing:3px;}
-  .join-r{padding:4px 12px;background:#fff;color:#000;border:none;font-family:monospace;font-size:10px;cursor:pointer;}
-  #lobby-status{font-size:11px;letter-spacing:2px;text-align:center;min-height:16px;color:#888;}
-  #lobby-status.err{color:#f55;}
-  #lobby-status.ok{color:#5f5;}
-  .back-link{font-size:11px;color:#444;text-decoration:none;letter-spacing:2px;}
-  .back-link:hover{color:#fff;}
-
-  /* ── GAME LAYOUT ─────────────────────────── */
-  #screen-game{flex-direction:row;flex-wrap:wrap;align-items:flex-start;justify-content:center;gap:8px;padding:4px;max-width:1040px;}
-
-  .game-main{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0;}
-  .scoreboard{display:flex;justify-content:space-between;align-items:center;width:100%;}
-  .score-box{text-align:center;min-width:80px;}
-  .score-num{font-size:clamp(24px,6vw,48px);font-weight:900;}
-  .score-lbl{font-size:10px;color:#888;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px;}
-  #g-status{font-size:11px;color:#888;letter-spacing:2px;text-align:center;flex:1;padding:0 6px;}
-  #canvas-wrap{width:100%;touch-action:none;}
-  #canvas{display:block;width:100%;height:auto;border:2px solid #fff;background:#000;touch-action:none;}
-  .touch-controls{display:none;width:100%;gap:8px;}
-  @media(pointer:coarse){.touch-controls{display:flex;}}
-  .touch-btn{flex:1;height:60px;background:#111;border:2px solid #fff;font-size:20px;cursor:pointer;touch-action:manipulation;user-select:none;display:flex;align-items:center;justify-content:center;}
-  .touch-btn:active{background:#333;}
-  .gfooter{display:flex;justify-content:space-between;align-items:center;width:100%;}
-  .gfooter-btn{padding:6px 14px;border:2px solid #fff;background:#000;color:#fff;font-family:monospace;font-size:11px;letter-spacing:2px;cursor:pointer;}
-  .gfooter-btn:hover,.gfooter-btn:active{background:#fff;color:#000;}
-  .gfooter-hint{font-size:10px;color:#444;}
-
-  /* ── CHAT ────────────────────────────────── */
-  .chat-panel{display:flex;flex-direction:column;width:220px;height:100%;min-height:300px;border:2px solid #333;flex-shrink:0;}
-  .chat-title{font-size:10px;letter-spacing:3px;padding:8px 10px;border-bottom:1px solid #333;color:#888;}
-  .chat-messages{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:6px;min-height:200px;max-height:400px;}
-  .chat-messages::-webkit-scrollbar{width:4px;}
-  .chat-messages::-webkit-scrollbar-thumb{background:#333;}
-  .chat-msg{font-size:11px;line-height:1.5;word-break:break-word;}
-  .chat-msg .sender{color:#888;font-size:10px;}
-  .chat-msg .sender.me{color:#fff;}
-  .chat-msg .text{color:#ccc;}
-  .chat-msg.system .text{color:#555;font-style:italic;}
-  .chat-input-row{display:flex;border-top:1px solid #333;}
-  .chat-input{flex:1;padding:8px;background:#000;border:none;color:#fff;font-family:monospace;font-size:12px;outline:none;}
-  .chat-input::placeholder{color:#333;}
-  .chat-send{padding:8px 10px;background:#fff;color:#000;border:none;font-family:monospace;font-size:11px;font-weight:700;cursor:pointer;}
-  .chat-send:hover{background:#ccc;}
-  @media(max-width:700px){.chat-panel{width:100%;min-height:unset;max-height:160px;}.chat-messages{max-height:100px;}}
-
-  /* ── WIN ─────────────────────────────────── */
-  #win-title{font-size:clamp(32px,9vw,52px);font-weight:900;letter-spacing:6px;}
-  #win-score{font-size:18px;color:#888;}
-  .win-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
-  .win-btn{padding:12px 22px;font-family:monospace;font-size:12px;letter-spacing:2px;cursor:pointer;border:2px solid #fff;}
-  #wbtn-rematch{background:#fff;color:#000;}
-  #wbtn-rematch:hover{background:#ccc;}
-  #wbtn-lobby{background:#000;color:#fff;}
-  #wbtn-lobby:hover{background:#fff;color:#000;}
+/* win */
+#win-title{font-size:clamp(28px,8vw,48px);font-weight:900;letter-spacing:6px;}
+#win-score{font-size:18px;color:#888;}
+#win-coins{font-size:13px;color:#888;letter-spacing:2px;}
+.win-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
+.win-btn{padding:12px 22px;font-family:monospace;font-size:12px;letter-spacing:2px;cursor:pointer;border:2px solid #fff;touch-action:manipulation;}
+#wbtn-rematch{background:#fff;color:#000;}
+#wbtn-rematch:hover{background:#ccc;}
+#wbtn-lobby{background:#000;color:#fff;}
+#wbtn-lobby:hover{background:#fff;color:#000;}
 </style>
 </head>
 <body>
@@ -126,7 +123,7 @@
     <button class="btn" onclick="createPublic()">CREATE PUBLIC ROOM</button>
   </div>
   <div id="lobby-status"></div>
-  <p style="font-size:10px;color:#333;letter-spacing:1px;text-align:center">↑/↓ to move &nbsp;|&nbsp; First to 7 wins</p>
+  <p style="font-size:10px;color:#333;letter-spacing:1px;text-align:center">First to 7 wins &nbsp;|&nbsp; Win = 10 coins, Lose = 3 coins</p>
   <a href="index.html" class="back-link">← BACK</a>
 </div>
 
@@ -136,31 +133,30 @@
     <div class="scoreboard">
       <div class="score-box">
         <div id="score-h" class="score-num">0</div>
-        <div id="lbl-h" class="score-lbl">—</div>
+        <div id="lbl-h"   class="score-lbl">—</div>
       </div>
       <div id="g-status">—</div>
       <div class="score-box">
         <div id="score-g" class="score-num">0</div>
-        <div id="lbl-g" class="score-lbl">—</div>
+        <div id="lbl-g"   class="score-lbl">—</div>
       </div>
     </div>
     <div id="canvas-wrap"><canvas id="canvas" width="760" height="480"></canvas></div>
-    <div class="touch-controls">
-      <button class="touch-btn" id="touch-up">▲</button>
-      <button class="touch-btn" id="touch-down">▼</button>
+    <div class="touch-row">
+      <button class="touch-btn" id="t-up">▲</button>
+      <button class="touch-btn" id="t-dn">▼</button>
     </div>
     <div class="gfooter">
       <button class="gfooter-btn" onclick="leaveGame()">← LOBBY</button>
       <span class="gfooter-hint" id="kb-hint">↑/↓ move &nbsp;|&nbsp; SPACE pause</span>
     </div>
   </div>
-  <!-- CHAT -->
   <div class="chat-panel">
     <div class="chat-title">CHAT</div>
-    <div class="chat-messages" id="chat-messages"></div>
-    <div class="chat-input-row">
-      <input class="chat-input" id="chat-input" placeholder="type a message..." maxlength="120" autocomplete="off">
-      <button class="chat-send" onclick="sendChat()">SEND</button>
+    <div class="chat-msgs" id="chat-msgs"></div>
+    <div class="chat-row">
+      <input class="chat-in" id="chat-in" placeholder="type..." maxlength="100" autocomplete="off">
+      <button class="chat-snd" onclick="sendChat()">SEND</button>
     </div>
   </div>
 </div>
@@ -169,6 +165,7 @@
 <div id="screen-win" class="screen">
   <div id="win-title"></div>
   <div id="win-score"></div>
+  <div id="win-coins"></div>
   <div class="win-btns">
     <button class="win-btn" id="wbtn-rematch" onclick="requestRematch()">REMATCH</button>
     <button class="win-btn" id="wbtn-lobby"   onclick="leaveGame()">LOBBY</button>
@@ -177,7 +174,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, get, push, onValue, remove, update, off, serverTimestamp }
+import { getDatabase, ref, set, get, push, onValue, remove, update, off }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 import { getAuth, onAuthStateChanged, signOut }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -188,174 +185,132 @@ const fbApp=initializeApp(FC), db=getDatabase(fbApp), auth=getAuth(fbApp);
 const W=760,H=480,PW=12,PH=80,BS=10,WIN=7,TICK=1000/60;
 
 // ── Auth ──────────────────────────────────────────────────────
-let currentUser=null, authResolve;
-const authReady=new Promise(r=>{authResolve=r;});
+let currentUser=null,_ar,_ad=false;
+const authReady=new Promise(r=>{_ar=r;});
 onAuthStateChanged(auth,async user=>{
-  currentUser=user; authResolve();
+  currentUser=user;if(!_ad){_ad=true;_ar();}
   if(user){
-    const snap=await get(ref(db,`users/${user.uid}`));
-    const nick=(snap.exists()&&snap.val().nickname)||user.displayName||'Player';
+    const s=await get(ref(db,`users/${user.uid}`));
+    const nick=(s.exists()&&s.val().nickname)||user.displayName||'Player';
     document.getElementById('user-bar').style.display='flex';
     document.getElementById('bar-nick').textContent=nick;
-  } else {
-    document.getElementById('user-bar').style.display='none';
-  }
+  } else document.getElementById('user-bar').style.display='none';
 });
 document.getElementById('bar-signout').onclick=async()=>{await signOut(auth);window.location.href='auth.html';};
 
+async function getNick(){
+  await authReady;if(!currentUser)return 'Player';
+  const s=await get(ref(db,`users/${currentUser.uid}`));
+  return (s.exists()&&s.val().nickname)||currentUser.displayName||'Player';
+}
+async function getSkin(){
+  await authReady;if(!currentUser)return 'default';
+  const s=await get(ref(db,`users/${currentUser.uid}/equippedSkin`));
+  return s.val()||'default';
+}
+
 // ── Game state ────────────────────────────────────────────────
-let isHost=false,roomId=null,myRole=null,myNick='Player';
+let isHost=false,roomId=null,myRole=null,myNick='Player',mySkin='default';
+let oppSkin='default';
 let running=false,paused=true,rafId=null;
 let hostY=H/2-PH/2,guestY=H/2-PH/2,myY=H/2-PH/2;
 let ball=null,scoreH=0,scoreG=0,accumulator=0,lastTick=0,rematchVotes=0,publicInterval=null;
-let stateUnsub=null,inputUnsub=null,signalUnsub=null,chatUnsub=null;
+let unsubState=null,unsubInput=null,unsubSig=null,unsubChat=null;
 
 // ── Input ─────────────────────────────────────────────────────
 const keys={};
 document.addEventListener('keydown',e=>{
   keys[e.key]=true;
   if(e.key===' '){e.preventDefault();togglePause();}
-  if(e.key==='Enter'&&document.activeElement!==document.getElementById('chat-input'))e.preventDefault();
 });
-document.addEventListener('keyup',e=>{keys[e.key]=false;});
-const touch={up:false,down:false};
+document.addEventListener('keyup',e=>delete keys[e.key]);
+const touch={up:false,dn:false};
+const tUp=document.getElementById('t-up'), tDn=document.getElementById('t-dn');
 ['touchstart','mousedown'].forEach(ev=>{
-  document.getElementById('touch-up').addEventListener(ev,e=>{e.preventDefault();touch.up=true;},{passive:false});
-  document.getElementById('touch-down').addEventListener(ev,e=>{e.preventDefault();touch.down=true;},{passive:false});
+  tUp.addEventListener(ev,e=>{e.preventDefault();touch.up=true;},{passive:false});
+  tDn.addEventListener(ev,e=>{e.preventDefault();touch.dn=true;},{passive:false});
 });
 ['touchend','touchcancel','mouseup'].forEach(ev=>{
-  document.getElementById('touch-up').addEventListener(ev,()=>{touch.up=false;});
-  document.getElementById('touch-down').addEventListener(ev,()=>{touch.down=false;});
+  tUp.addEventListener(ev,()=>touch.up=false);
+  tDn.addEventListener(ev,()=>touch.dn=false);
 });
 document.getElementById('canvas').addEventListener('click',()=>togglePause());
 if(window.matchMedia('(pointer:coarse)').matches) document.getElementById('kb-hint').style.display='none';
 
-// ── Chat ──────────────────────────────────────────────────────
-function chatRef(id){return ref(db,`rooms/${id}/chat`);}
-
-function appendChatMsg(sender,text,isMe,system=false){
-  const box=document.getElementById('chat-messages');
-  const div=document.createElement('div');
-  div.className='chat-msg'+(system?' system':'');
-  if(!system) div.innerHTML=`<div class="sender${isMe?' me':''}">${esc(sender)}</div><div class="text">${esc(text)}</div>`;
-  else div.innerHTML=`<div class="text">${esc(text)}</div>`;
-  box.appendChild(div);
-  box.scrollTop=box.scrollHeight;
-}
+// ── DB refs ───────────────────────────────────────────────────
+const rRef  =id=>ref(db,`rooms/${id}`);
+const stRef =id=>ref(db,`rooms/${id}/state`);
+const inRef =(id,r)=>ref(db,`rooms/${id}/input/${r}`);
+const chRef =id=>ref(db,`rooms/${id}/chat`);
+function rand(n=6){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<n;i++)s+=c[Math.random()*c.length|0];return s;}
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-
-let lastChatKey=null;
-function subscribeChatForGame(id){
-  if(chatUnsub){chatUnsub();chatUnsub=null;}
-  lastChatKey=null;
-  // Only listen to new messages from now
-  const firstLoad=Date.now();
-  chatUnsub=onValue(chatRef(id),snap=>{
-    if(!snap.exists()) return;
-    snap.forEach(child=>{
-      const k=child.key, d=child.val();
-      if(k<=lastChatKey) return;
-      lastChatKey=k;
-      if((d.ts||0)<firstLoad-2000) return; // skip old messages
-      const isMe=d.uid===currentUser?.uid;
-      appendChatMsg(d.sender,d.text,isMe);
-    });
-  });
-}
-
-window.sendChat=function(){
-  const input=document.getElementById('chat-input');
-  const text=input.value.trim();
-  if(!text||!roomId) return;
-  input.value='';
-  push(chatRef(roomId),{
-    sender: myNick,
-    text,
-    uid: currentUser?.uid||'anon',
-    ts: Date.now()
-  });
-};
-document.getElementById('chat-input').addEventListener('keydown',e=>{
-  if(e.key==='Enter'){e.preventDefault();window.sendChat();}
-});
-
-// ── DB refs ───────────────────────────────────────────────────
-const roomRef  =id=>ref(db,`rooms/${id}`);
-const stateRef =id=>ref(db,`rooms/${id}/state`);
-const inputRef =(id,role)=>ref(db,`rooms/${id}/input/${role}`);
-function randCode(n=6){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<n;i++)s+=c[Math.random()*c.length|0];return s;}
-
-// ── UI ────────────────────────────────────────────────────────
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
-function setStatus(msg,cls=''){const e=document.getElementById('lobby-status');e.textContent=msg;e.className=cls||'';}
-function setGStatus(msg){document.getElementById('g-status').textContent=msg;}
+function setStatus(m,c=''){const e=document.getElementById('lobby-status');e.textContent=m;e.className=c;}
+function setGS(m){document.getElementById('g-status').textContent=m;}
 
-async function getNick(){
-  await authReady;
-  if(!currentUser) return 'Player';
-  const snap=await get(ref(db,`users/${currentUser.uid}`));
-  return (snap.exists()&&snap.val().nickname)||currentUser.displayName||'Player';
-}
-
-window.switchTab=function(tab){
-  document.getElementById('tab-private').classList.toggle('active',tab==='private');
-  document.getElementById('tab-public').classList.toggle('active',tab==='public');
-  document.getElementById('panel-private').style.display=tab==='private'?'flex':'none';
-  document.getElementById('panel-public').style.display=tab==='public'?'flex':'none';
-  if(tab==='public') refreshRooms();
+window.switchTab=function(t){
+  ['private','public'].forEach(x=>{
+    document.getElementById('tab-'+x).classList.toggle('active',t===x);
+    document.getElementById('panel-'+x).style.display=t===x?'flex':'none';
+  });
+  if(t==='public')refreshRooms();
 };
-window.copyCode=function(){if(!roomId)return;navigator.clipboard.writeText(roomId).then(()=>setStatus('Copied!','ok'));};
+window.copyCode=function(){if(roomId)navigator.clipboard.writeText(roomId).then(()=>setStatus('Copied!','ok'));};
 
-// ── Room creation / joining ───────────────────────────────────
+// ── Room creation ─────────────────────────────────────────────
 window.createPrivate=async function(){
-  const id=randCode(6); isHost=true; myRole='host'; roomId=id;
-  const ownerUid=currentUser?currentUser.uid:'__anon_'+randCode(8);
-  await set(roomRef(id),{host:'waiting',guest:null,state:null,created:Date.now(),ownerUid});
+  await authReady;
+  const id=rand();isHost=true;myRole='host';roomId=id;
+  myNick=await getNick();mySkin=await getSkin();
+  const ownerUid=currentUser?currentUser.uid:'anon_'+rand(8);
+  await set(rRef(id),{host:'waiting',guest:null,state:null,created:Date.now(),ownerUid,hostSkin:mySkin});
   document.getElementById('my-code').textContent=id;
   document.getElementById('my-code').classList.remove('dim');
-  setStatus('Room '+id+' ready — share your code!','ok');
+  setStatus('Room '+id+' ready!','ok');
   const gjRef=ref(db,`rooms/${id}/guest`);
-  onValue(gjRef,snap=>{if(snap.val()==='joined'){off(gjRef);setStatus('Guest joined!','ok');beginGame();}});
+  onValue(gjRef,s=>{if(s.val()==='joined'){off(gjRef);setStatus('Opponent joined!','ok');beginGame();}});
 };
 
 window.joinPrivate=async function(){
   const id=document.getElementById('priv-input').value.trim().toUpperCase();
   if(id.length<4){setStatus('Enter a valid code','err');return;}
-  const snap=await get(roomRef(id));
+  await authReady;
+  const snap=await get(rRef(id));
   if(!snap.exists()){setStatus('Room not found','err');return;}
   const d=snap.val();
   if(d.guest==='joined'){setStatus('Room is full','err');return;}
-  const myUid=currentUser?currentUser.uid:null;
-  if(id===roomId||(myUid&&d.ownerUid&&d.ownerUid===myUid)){setStatus("Can't join your own room",'err');return;}
-  isHost=false; myRole='guest'; roomId=id;
-  await update(roomRef(id),{guest:'joined'});
-  setStatus('Joined '+id+'!','ok');
-  beginGame();
+  const myUid=currentUser?.uid;
+  if(id===roomId||(myUid&&d.ownerUid===myUid)){setStatus("Can't join your own room",'err');return;}
+  isHost=false;myRole='guest';roomId=id;
+  myNick=await getNick();mySkin=await getSkin();
+  await update(rRef(id),{guest:'joined',guestSkin:mySkin});
+  setStatus('Joined!','ok');beginGame();
 };
 
 window.createPublic=async function(){
-  const id=randCode(6); isHost=true; myRole='host'; roomId=id;
-  const now=Date.now(), ownerUid=currentUser?currentUser.uid:'__anon_'+randCode(8);
-  await set(roomRef(id),{host:'waiting',guest:null,state:null,created:now,ownerUid});
+  await authReady;
+  const id=rand();isHost=true;myRole='host';roomId=id;
+  myNick=await getNick();mySkin=await getSkin();
+  const ownerUid=currentUser?.uid||'anon_'+rand(8),now=Date.now();
+  await set(rRef(id),{host:'waiting',guest:null,state:null,created:now,ownerUid,hostSkin:mySkin});
   await set(ref(db,`public/${id}`),{id,created:now,ownerUid});
   document.getElementById('my-code').textContent=id;
   document.getElementById('my-code').classList.remove('dim');
-  setStatus('Public room '+id+' open...','ok');
+  setStatus('Public room open...','ok');
   publicInterval=setInterval(()=>set(ref(db,`public/${id}/ts`),Date.now()),20000);
   const gjRef=ref(db,`rooms/${id}/guest`);
-  onValue(gjRef,snap=>{
-    if(snap.val()==='joined'){off(gjRef);clearInterval(publicInterval);remove(ref(db,`public/${id}`));setStatus('Opponent joined!','ok');beginGame();}
+  onValue(gjRef,s=>{
+    if(s.val()==='joined'){off(gjRef);clearInterval(publicInterval);remove(ref(db,`public/${id}`));setStatus('Opponent joined!','ok');beginGame();}
   });
 };
 
 window.refreshRooms=async function(){
-  const el=document.getElementById('room-list');
-  el.innerHTML='<div class="room-empty">Searching...</div>';
+  const el=document.getElementById('room-list');el.innerHTML='<div class="room-empty">Searching...</div>';
   const snap=await get(ref(db,'public'));
-  if(!snap.exists()||!snap.val()){el.innerHTML='<div class="room-empty">No open rooms.</div>';return;}
-  const myUid=currentUser?currentUser.uid:null;
-  const rooms=Object.values(snap.val()).filter(r=>Date.now()-r.created<120000&&r.id!==roomId&&!(myUid&&r.ownerUid===myUid));
+  if(!snap.exists()){el.innerHTML='<div class="room-empty">No open rooms.</div>';return;}
+  const myUid=currentUser?.uid;
+  const rooms=Object.values(snap.val()||{}).filter(r=>Date.now()-r.created<120000&&r.id!==roomId&&!(myUid&&r.ownerUid===myUid));
   if(!rooms.length){el.innerHTML='<div class="room-empty">No open rooms.</div>';return;}
   el.innerHTML='';
   rooms.forEach(r=>{
@@ -364,106 +319,110 @@ window.refreshRooms=async function(){
     el.appendChild(row);
   });
 };
-
 window.joinPublicRoom=async function(id){
-  const snap=await get(roomRef(id));
-  if(!snap.exists()){setStatus('Room no longer available','err');return;}
+  await authReady;
+  const snap=await get(rRef(id));
+  if(!snap.exists()){setStatus('Room gone','err');return;}
   const d=snap.val();
   if(d.guest==='joined'){setStatus('Room is full','err');return;}
-  const myUid=currentUser?currentUser.uid:null;
-  if(id===roomId||(myUid&&d.ownerUid&&d.ownerUid===myUid)){setStatus("Can't join your own room",'err');return;}
-  isHost=false; myRole='guest'; roomId=id;
-  await update(roomRef(id),{guest:'joined'});
+  const myUid=currentUser?.uid;
+  if(id===roomId||(myUid&&d.ownerUid===myUid)){setStatus("Can't join your own room",'err');return;}
+  isHost=false;myRole='guest';roomId=id;
+  myNick=await getNick();mySkin=await getSkin();
+  await update(rRef(id),{guest:'joined',guestSkin:mySkin});
   await remove(ref(db,`public/${id}`));
-  setStatus('Joined!','ok'); beginGame();
+  setStatus('Joined!','ok');beginGame();
 };
 
 // ── Game ──────────────────────────────────────────────────────
-function makeBall(dir){const a=(Math.random()*0.6-0.3),spd=5;return{x:W/2-BS/2,y:H/2-BS/2,vx:dir*spd*Math.cos(a),vy:spd*Math.sin(a),spd};}
+function mkBall(d){const a=(Math.random()*0.6-0.3),s=5;return{x:W/2-BS/2,y:H/2-BS/2,vx:d*s*Math.cos(a),vy:s*Math.sin(a),spd:s};}
 
 async function beginGame(){
   scoreH=0;scoreG=0;rematchVotes=0;
   myY=H/2-PH/2;hostY=H/2-PH/2;guestY=H/2-PH/2;
-  ball=makeBall(1);paused=true;running=true;
+  ball=mkBall(1);paused=true;running=true;
   document.getElementById('score-h').textContent='0';
   document.getElementById('score-g').textContent='0';
-  document.getElementById('chat-messages').innerHTML='';
-  myNick=await getNick();
+  document.getElementById('chat-msgs').innerHTML='';
+
+  // Fetch skins from room
+  const rSnap=await get(rRef(roomId));
+  const rd=rSnap.val()||{};
+  if(isHost){mySkin=rd.hostSkin||'default';oppSkin=rd.guestSkin||'default';}
+  else{mySkin=rd.guestSkin||'default';oppSkin=rd.hostSkin||'default';}
+
   document.getElementById('lbl-h').textContent=isHost?myNick:'OPPONENT';
   document.getElementById('lbl-g').textContent=isHost?'OPPONENT':myNick;
-  setGStatus('PRESS SPACE');
-  show('screen-game');
-  subscribeChatForGame(roomId);
-  appendChatMsg('','Game started! Say hi.','',true);
+  setGS('PRESS SPACE');show('screen-game');
 
-  if(inputUnsub){inputUnsub();inputUnsub=null;}
+  chatSub();chatAppend('','Game started! Say hi.',false,true);
+
+  if(unsubInput){unsubInput();unsubInput=null;}
   const oppRole=isHost?'guest':'host';
-  inputUnsub=onValue(inputRef(roomId,oppRole),snap=>{
-    const y=snap.val();if(y==null)return;
+  unsubInput=onValue(inRef(roomId,oppRole),s=>{
+    const y=s.val();if(y==null)return;
     if(isHost)guestY=y;else hostY=y;
   });
 
   if(!isHost){
-    if(stateUnsub){stateUnsub();stateUnsub=null;}
-    stateUnsub=onValue(stateRef(roomId),snap=>{
-      const s=snap.val();if(!s||!running)return;
-      ball={x:s.bx,y:s.by,vx:s.bvx,vy:s.bvy,spd:s.bspd};
-      hostY=s.hy;
-      if(scoreH!==s.sh||scoreG!==s.sg){scoreH=s.sh;scoreG=s.sg;updateScores();}
-      paused=s.paused;
-      if(s.status!=null)setGStatus(s.status);
+    if(unsubState){unsubState();unsubState=null;}
+    unsubState=onValue(stRef(roomId),s=>{
+      const d=s.val();if(!d||!running)return;
+      ball={x:d.bx,y:d.by,vx:d.bvx,vy:d.bvy,spd:d.bspd};
+      hostY=d.hy;
+      if(scoreH!==d.sh||scoreG!==d.sg){scoreH=d.sh;scoreG=d.sg;updScores();}
+      paused=d.paused;
+      if(d.st!=null)setGS(d.st);
       if(running&&(scoreH>=WIN||scoreG>=WIN)){running=false;cancelAnimationFrame(rafId);showWin();}
     });
   }
 
-  if(signalUnsub){signalUnsub();signalUnsub=null;}
-  signalUnsub=onValue(ref(db,`rooms/${roomId}/signal`),snap=>{
-    const v=snap.val();if(!v)return;
+  if(unsubSig){unsubSig();unsubSig=null;}
+  unsubSig=onValue(ref(db,`rooms/${roomId}/signal`),s=>{
+    const v=s.val();if(!v)return;
     if(v==='rematch-1'&&rematchVotes===0){rematchVotes=1;document.getElementById('wbtn-rematch').textContent='WAITING...';}
     if(v==='rematch-2')restartGame();
-    if(v==='bye'){running=false;cancelAnimationFrame(rafId);setGStatus('OPPONENT LEFT');appendChatMsg('','Opponent left the game.','',true);}
+    if(v==='bye'){running=false;cancelAnimationFrame(rafId);setGS('OPPONENT LEFT');chatAppend('','Opponent left.',false,true);}
   });
 
-  cancelAnimationFrame(rafId);
-  lastTick=performance.now();accumulator=0;
+  cancelAnimationFrame(rafId);lastTick=performance.now();accumulator=0;
   rafId=requestAnimationFrame(loop);
 }
 
 function restartGame(){
   scoreH=0;scoreG=0;rematchVotes=0;
   myY=H/2-PH/2;hostY=H/2-PH/2;guestY=H/2-PH/2;
-  ball=makeBall(1);paused=true;running=true;
+  ball=mkBall(1);paused=true;running=true;
   document.getElementById('score-h').textContent='0';
   document.getElementById('score-g').textContent='0';
   document.getElementById('wbtn-rematch').textContent='REMATCH';
-  setGStatus('PRESS SPACE');
-  show('screen-game');
-  update(ref(db,`rooms/${roomId}`),{signal:null});
+  setGS('PRESS SPACE');show('screen-game');
+  update(rRef(roomId),{signal:null});
   cancelAnimationFrame(rafId);lastTick=performance.now();accumulator=0;
   rafId=requestAnimationFrame(loop);
 }
 
 window.leaveGame=function(){
   running=false;cancelAnimationFrame(rafId);
-  [stateUnsub,inputUnsub,signalUnsub,chatUnsub].forEach(u=>{if(u)u();});
-  stateUnsub=inputUnsub=signalUnsub=chatUnsub=null;
-  if(roomId)update(ref(db,`rooms/${roomId}`),{signal:'bye'});
+  [unsubState,unsubInput,unsubSig,unsubChat].forEach(u=>u&&u());
+  unsubState=unsubInput=unsubSig=unsubChat=null;
+  if(roomId)update(rRef(roomId),{signal:'bye'});
   clearInterval(publicInterval);
-  show('screen-lobby');setStatus('Back in lobby.','');
+  show('screen-lobby');setStatus('');
 };
 
 function loop(now){
   if(!running){draw();return;}
   const dt=Math.min(now-lastTick,100);lastTick=now;
   if(!paused){accumulator+=dt;while(accumulator>=TICK){tick();accumulator-=TICK;}}
-  set(inputRef(roomId,myRole),myY);
+  set(inRef(roomId,myRole),myY);
   draw();
   rafId=requestAnimationFrame(loop);
 }
 
 function applyInput(){
-  const up=keys['ArrowUp']||touch.up, dn=keys['ArrowDown']||touch.down;
-  if(up&&myY>0)myY-=6; if(dn&&myY<H-PH)myY+=6;
+  const up=keys['ArrowUp']||touch.up, dn=keys['ArrowDown']||touch.dn;
+  if(up&&myY>0)myY-=6;if(dn&&myY<H-PH)myY+=6;
   if(isHost)hostY=myY;else guestY=myY;
 }
 
@@ -474,57 +433,143 @@ function tick(){
   if(ball.y+BS>=H){ball.y=H-BS;ball.vy=-Math.abs(ball.vy);}
   function hit(px,py,side){
     if(ball.x+BS>px&&ball.x<px+PW&&ball.y+BS>py&&ball.y<py+PH){
-      const rel=(ball.y+BS/2-py)/PH,ang=(rel-0.5)*Math.PI*0.6;
-      ball.spd=Math.min(ball.spd+0.3,15);
+      const rel=(ball.y+BS/2-py)/PH,ang=(rel-.5)*Math.PI*.6;
+      ball.spd=Math.min(ball.spd+.3,15);
       ball.vx=side*ball.spd*Math.cos(ang);ball.vy=ball.spd*Math.sin(ang);
-      ball.x=(side===1)?px+PW:px-BS;
+      ball.x=side===1?px+PW:px-BS;
     }
   }
   hit(20,hostY,1);hit(W-20-PW,guestY,-1);
-  let scored=false;
-  if(ball.x+BS<0){scoreG++;scored=true;if(!checkWin()){ball=makeBall(1);paused=true;setGStatus('PRESS SPACE');}}
-  if(ball.x>W)  {scoreH++;scored=true;if(!checkWin()){ball=makeBall(-1);paused=true;setGStatus('PRESS SPACE');}}
-  if(scored)updateScores();
-  set(stateRef(roomId),{bx:ball.x,by:ball.y,bvx:ball.vx,bvy:ball.vy,bspd:ball.spd,hy:hostY,sh:scoreH,sg:scoreG,paused,status:document.getElementById('g-status').textContent});
+  if(ball.x+BS<0){scoreG++;if(!checkWin()){ball=mkBall(1);paused=true;setGS('PRESS SPACE');}updScores();}
+  if(ball.x>W)  {scoreH++;if(!checkWin()){ball=mkBall(-1);paused=true;setGS('PRESS SPACE');}updScores();}
+  set(stRef(roomId),{bx:ball.x,by:ball.y,bvx:ball.vx,bvy:ball.vy,bspd:ball.spd,hy:hostY,sh:scoreH,sg:scoreG,paused,st:document.getElementById('g-status').textContent});
 }
 
 function togglePause(){
-  if(!running)return;paused=!paused;setGStatus(paused?'PAUSED':'');
-  if(isHost)set(stateRef(roomId),{bx:ball.x,by:ball.y,bvx:ball.vx,bvy:ball.vy,bspd:ball.spd,hy:hostY,sh:scoreH,sg:scoreG,paused,status:paused?'PAUSED':''});
+  if(!running)return;paused=!paused;setGS(paused?'PAUSED':'');
+  if(isHost)set(stRef(roomId),{bx:ball.x,by:ball.y,bvx:ball.vx,bvy:ball.vy,bspd:ball.spd,hy:hostY,sh:scoreH,sg:scoreG,paused,st:paused?'PAUSED':''});
 }
-function updateScores(){document.getElementById('score-h').textContent=scoreH;document.getElementById('score-g').textContent=scoreG;}
+function updScores(){document.getElementById('score-h').textContent=scoreH;document.getElementById('score-g').textContent=scoreG;}
 function checkWin(){
   if(scoreH>=WIN||scoreG>=WIN){
     running=false;cancelAnimationFrame(rafId);
-    set(stateRef(roomId),{bx:ball.x,by:ball.y,bvx:0,bvy:0,bspd:0,hy:hostY,sh:scoreH,sg:scoreG,paused:true,status:''});
-    showWin();return true;
+    set(stRef(roomId),{bx:W/2,by:H/2,bvx:0,bvy:0,bspd:0,hy:hostY,sh:scoreH,sg:scoreG,paused:true,st:''});
+    const won=isHost?(scoreH>=WIN):(scoreG>=WIN);
+    awardCoins(won);
+    showWin(won);return true;
   }return false;
 }
-function showWin(){
-  const iWon=isHost?(scoreH>=WIN):(scoreG>=WIN);
-  document.getElementById('win-title').textContent=iWon?'YOU WIN!':'YOU LOSE!';
+async function awardCoins(won){
+  if(!currentUser)return;
+  const coins=won?10:3;
+  const ur=ref(db,`users/${currentUser.uid}`);
+  const snap=await get(ur);if(!snap.exists())return;
+  const cur=snap.val().coins||0;
+  await update(ur,{coins:cur+coins});
+}
+function showWin(won){
+  document.getElementById('win-title').textContent=won?'YOU WIN!':'YOU LOSE!';
   document.getElementById('win-score').textContent=scoreH+' — '+scoreG;
+  document.getElementById('win-coins').textContent='+'+(won?10:3)+' COINS';
   document.getElementById('wbtn-rematch').textContent='REMATCH';
   show('screen-win');
 }
 window.requestRematch=function(){
   rematchVotes++;
   const val=rematchVotes>=2?'rematch-2':'rematch-1';
-  update(ref(db,`rooms/${roomId}`),{signal:val});
+  update(rRef(roomId),{signal:val});
   if(rematchVotes>=2)restartGame();
   else document.getElementById('wbtn-rematch').textContent='WAITING...';
 };
 
+// ── Chat ──────────────────────────────────────────────────────
+let lastCK=null;
+function chatSub(){
+  if(unsubChat){unsubChat();unsubChat=null;}lastCK=null;
+  const t0=Date.now();
+  unsubChat=onValue(chRef(roomId),s=>{
+    if(!s.exists())return;
+    s.forEach(c=>{
+      const k=c.key,d=c.val();
+      if(lastCK&&k<=lastCK)return;lastCK=k;
+      if((d.ts||0)<t0-2000)return;
+      chatAppend(d.sender,d.text,d.uid===currentUser?.uid);
+    });
+  });
+}
+function chatAppend(sender,text,isMe,sys=false){
+  const box=document.getElementById('chat-msgs');
+  const div=document.createElement('div');div.className='chat-msg'+(sys?' sys':'');
+  if(!sys)div.innerHTML=`<div class="sndr${isMe?' me':''}">${esc(sender)}</div><div class="txt">${esc(text)}</div>`;
+  else div.innerHTML=`<div class="txt">${esc(text)}</div>`;
+  box.appendChild(div);box.scrollTop=box.scrollHeight;
+}
+window.sendChat=function(){
+  const inp=document.getElementById('chat-in');const t=inp.value.trim();
+  if(!t||!roomId)return;inp.value='';
+  push(chRef(roomId),{sender:myNick,text:t,uid:currentUser?.uid||'anon',ts:Date.now()});
+};
+document.getElementById('chat-in').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();window.sendChat();}});
+
+// ── Draw + skin renderer ──────────────────────────────────────
 const canvas=document.getElementById('canvas');
 const ctx=canvas.getContext('2d');
+
+function drawPaddle(x,y,skin){
+  ctx.save();
+  ctx.beginPath();ctx.rect(x,y,PW,PH);ctx.clip();
+  switch(skin){
+    case 'brick':
+      ctx.fillStyle='#c84';ctx.fillRect(x,y,PW,PH);
+      ctx.fillStyle='#000';
+      for(let r=0;r<5;r++){const ry=y+r*16;ctx.fillRect(x,ry,PW,1);}
+      for(let r=0;r<5;r++){const ry=y+r*16,off=r%2===0?PW/2:0;ctx.fillRect(x+off,ry,1,16);}
+      break;
+    case 'red':    ctx.fillStyle='#e33';ctx.fillRect(x,y,PW,PH);break;
+    case 'yellow': ctx.fillStyle='#ee2';ctx.fillRect(x,y,PW,PH);break;
+    case 'blue':   ctx.fillStyle='#33e';ctx.fillRect(x,y,PW,PH);break;
+    case 'green':  ctx.fillStyle='#3a3';ctx.fillRect(x,y,PW,PH);break;
+    case 'purple': ctx.fillStyle='#a3a';ctx.fillRect(x,y,PW,PH);break;
+    case 'cyan':   ctx.fillStyle='#0cc';ctx.fillRect(x,y,PW,PH);break;
+    case 'orange': ctx.fillStyle='#f70';ctx.fillRect(x,y,PW,PH);break;
+    case 'cloud':
+      ctx.fillStyle='#aad';ctx.fillRect(x,y,PW,PH);
+      ctx.fillStyle='#fff';
+      for(let r=0;r<4;r++){ctx.fillRect(x+1,y+r*20+3,PW-2,4);ctx.fillRect(x+1,y+r*20+10,PW-2,4);}
+      break;
+    case 'fish':
+      ctx.fillStyle='#48f';ctx.fillRect(x,y,PW,PH);
+      ctx.fillStyle='#6af';
+      for(let r=0;r<5;r++)ctx.fillRect(x+1,y+r*16+2,PW-2,8);
+      ctx.fillStyle='#fff';ctx.fillRect(x+PW/2-1,y+2,2,PH-4);
+      break;
+    case 'pencil':
+      ctx.fillStyle='#fe8';ctx.fillRect(x,y,PW,PH-6);
+      ctx.fillStyle='#f84';ctx.fillRect(x,y+PH-6,PW,4);
+      ctx.fillStyle='#fcc';ctx.fillRect(x+2,y+PH-2,PW-4,2);
+      ctx.fillStyle='#888';ctx.fillRect(x+PW/2-1,y,2,PH);
+      break;
+    case 'baguette':
+      ctx.fillStyle='#e9a';ctx.fillRect(x,y,PW,PH);
+      ctx.fillStyle='#c74';ctx.fillRect(x+2,y+4,PW-4,PH-8);
+      ctx.fillStyle='#000';
+      for(let r=0;r<5;r++)ctx.fillRect(x+1,y+8+r*14,PW-2,1);
+      break;
+    default:
+      ctx.fillStyle='#fff';ctx.fillRect(x,y,PW,PH);
+  }
+  ctx.restore();
+}
+
 function draw(){
   ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
   ctx.setLineDash([8,12]);ctx.strokeStyle='#333';ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();
-  ctx.setLineDash([]);ctx.fillStyle='#fff';
-  ctx.fillRect(20,hostY,PW,PH);
-  ctx.fillRect(W-20-PW,guestY,PW,PH);
-  if(ball)ctx.fillRect(Math.round(ball.x),Math.round(ball.y),BS,BS);
+  ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
+  const hSkin=isHost?mySkin:oppSkin;
+  const gSkin=isHost?oppSkin:mySkin;
+  drawPaddle(20,hostY,hSkin);
+  drawPaddle(W-20-PW,guestY,gSkin);
+  if(ball){ctx.fillStyle='#fff';ctx.fillRect(Math.round(ball.x),Math.round(ball.y),BS,BS);}
 }
 draw();
 </script>
