@@ -68,16 +68,19 @@ input::placeholder{color:#333;font-size:11px;}
 </div>
 
 <script type="module">
-import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, get, update }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 import {
-  getAuth, GoogleAuthProvider,
-  signInWithRedirect, getRedirectResult,
-  signInAnonymously, updateProfile
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInAnonymously,
+  updateProfile,
+  onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-const FC={
+const FC = {
   apiKey:"AIzaSyDyZcVPRTMk8_k0Kr_prqNZ6bZlbGq1oV4",
   authDomain:"pong-online-18210.firebaseapp.com",
   databaseURL:"https://pong-online-18210-default-rtdb.firebaseio.com",
@@ -86,12 +89,13 @@ const FC={
   messagingSenderId:"897676900222",
   appId:"1:897676900222:web:7933fd119d9b573b9d252f"
 };
-const app  = initializeApp(FC);
-const auth = getAuth(app);
-const db   = getDatabase(app);
 
 const DISCORD_CLIENT_ID = '1477737890485370940';
 const DISCORD_REDIRECT  = encodeURIComponent('https://askyyplaitano-hash.github.io/SuperPong/auth.html');
+
+const app  = initializeApp(FC);
+const auth = getAuth(app);
+const db   = getDatabase(app);
 
 // ── Helpers ───────────────────────────────────────────────────
 function st(msg, cls='') {
@@ -108,7 +112,7 @@ function enableAll() {
     const b = document.getElementById(id); if(b) b.disabled = false;
   });
 }
-function getDest()  { return sessionStorage.getItem('auth_redirect') || 'index.html'; }
+function getDest()    { return sessionStorage.getItem('auth_redirect') || 'index.html'; }
 function doRedirect() {
   const dest = getDest();
   sessionStorage.removeItem('auth_redirect');
@@ -120,33 +124,68 @@ async function saveProfile(user, nick, verified) {
   const snap = await get(r);
   if (!snap.exists()) {
     await set(r, {
-      nickname : nick || user.displayName || 'Player',
-      wins: 0, losses: 0,
-      verified,
+      nickname: nick || user.displayName || 'Player',
+      wins:0, losses:0, verified,
       created: Date.now()
     });
   } else {
     const upd = {};
-    if (verified && !snap.val().verified)                     upd.verified = true;
-    if (!snap.val().nickname && (nick || user.displayName))   upd.nickname = nick || user.displayName;
+    if (verified && !snap.val().verified)                 upd.verified = true;
+    if (!snap.val().nickname && (nick||user.displayName)) upd.nickname = nick || user.displayName;
     if (Object.keys(upd).length) await update(r, upd);
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// DISCORD callback  (access_token in URL hash)
-// ═══════════════════════════════════════════════════════════════
-const hashParams    = new URLSearchParams(window.location.hash.substring(1));
-const discordToken  = hashParams.get('access_token');
+// ── State flags ───────────────────────────────────────────────
+// googleClickedAt: timestamp when Google button was pressed.
+// onAuthStateChanged will redirect if it fires within 30s of a click.
+let googleClickedAt = 0;
+let redirectDone    = false;
+
+// ── onAuthStateChanged — the safety net ──────────────────────
+// On GitHub Pages, signInWithPopup's Promise sometimes never resolves
+// even though the login worked. onAuthStateChanged ALWAYS fires when
+// Firebase has a user. So we use it as a reliable fallback:
+//   - If we know the user clicked Google (googleClickedAt recent), save + redirect.
+//   - If page loads with an existing session (returning user), redirect immediately.
+onAuthStateChanged(auth, async user => {
+  if (!user || redirectDone) return;
+
+  const isDiscordCallback = new URLSearchParams(
+    window.location.hash.substring(1)
+  ).get('access_token');
+
+  // Don't auto-redirect during Discord callback (handled separately)
+  if (isDiscordCallback) return;
+
+  const sinceClick = Date.now() - googleClickedAt;
+  const comingFromGoogleClick = sinceClick < 30000; // within 30s of clicking Google
+
+  if (comingFromGoogleClick) {
+    // User just completed Google sign-in
+    redirectDone = true;
+    st('Signed in! Saving profile...', 'ok');
+    await saveProfile(user, user.displayName, true);
+    st('Welcome ' + (user.displayName || 'Player') + '!', 'ok');
+    doRedirect();
+  } else {
+    // Returning user with an existing session — redirect immediately
+    redirectDone = true;
+    doRedirect();
+  }
+});
+
+// ── Discord callback ──────────────────────────────────────────
+const hashParams   = new URLSearchParams(window.location.hash.substring(1));
+const discordToken = hashParams.get('access_token');
 
 if (discordToken) {
   history.replaceState(null, '', window.location.pathname + window.location.search);
   disableAll();
   st('Signing in with Discord...');
-
   (async () => {
     try {
-      const res = await fetch('https://discord.com/api/users/@me', {
+      const res  = await fetch('https://discord.com/api/users/@me', {
         headers: { Authorization: `Bearer ${discordToken}` }
       });
       if (!res.ok) throw new Error('Discord API ' + res.status);
@@ -155,6 +194,7 @@ if (discordToken) {
       const cred = await signInAnonymously(auth);
       await updateProfile(cred.user, { displayName: nick });
       await saveProfile(cred.user, nick, true);
+      redirectDone = true;
       st('Welcome ' + nick + '!', 'ok');
       setTimeout(doRedirect, 700);
     } catch(err) {
@@ -162,64 +202,36 @@ if (discordToken) {
       enableAll();
     }
   })();
-
-} else {
-  // ═══════════════════════════════════════════════════════════════
-  // GOOGLE redirect return  — MUST be checked before anything else
-  // Key insight: getRedirectResult resolves to null when there is
-  // no pending redirect, and resolves to a UserCredential when
-  // returning from Google.  We await it BEFORE touching auth state.
-  // ═══════════════════════════════════════════════════════════════
-  st('Checking sign-in status...');
-  disableAll();
-
-  try {
-    const result = await getRedirectResult(auth);
-
-    if (result && result.user) {
-      // ── Returning from Google redirect ─────────────────────
-      st('Saving profile...', 'ok');
-      await saveProfile(result.user, result.user.displayName, true);
-      st('Welcome ' + (result.user.displayName || 'Player') + '!', 'ok');
-      doRedirect();
-
-    } else {
-      // ── No pending redirect — show the buttons normally ────
-      st('');
-      enableAll();
-
-      // If already logged in from a previous session, go straight in
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        st('Already signed in, redirecting...', 'ok');
-        doRedirect();
-      }
-    }
-
-  } catch(err) {
-    // Ignore "no redirect pending" errors
-    if (err.code !== 'auth/no-current-user' && err.code !== 'auth/null-user') {
-      st('Error: ' + err.message, 'err');
-    } else {
-      st('');
-    }
-    enableAll();
-  }
 }
 
 // ── Google button ─────────────────────────────────────────────
-// Always use redirect — popup fails on GitHub Pages because
-// authDomain (firebaseapp.com) is a different origin.
 document.getElementById('btn-google').onclick = async () => {
   disableAll();
-  st('Redirecting to Google...');
-  // Save destination BEFORE navigating away
-  // (sessionStorage survives redirect if same origin — GitHub Pages is same origin)
+  st('Opening Google sign-in...');
+  googleClickedAt = Date.now(); // mark the timestamp
+
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+
   try {
-    await signInWithRedirect(auth, new GoogleAuthProvider());
-    // Browser navigates away.  On return, the code above handles getRedirectResult.
+    // This Promise may or may not resolve on GitHub Pages.
+    // Either way, onAuthStateChanged above will fire and redirect.
+    const result = await signInWithPopup(auth, provider);
+    if (!redirectDone) {
+      redirectDone = true;
+      await saveProfile(result.user, result.user.displayName, true);
+      st('Welcome ' + (result.user.displayName || 'Player') + '!', 'ok');
+      doRedirect();
+    }
   } catch(err) {
-    st('Error: ' + err.message, 'err');
+    googleClickedAt = 0; // reset so onAuthStateChanged doesn't redirect on error
+    if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+      st('Sign-in cancelled.', '');
+    } else if (err.code === 'auth/popup-blocked') {
+      st('Popup blocked — allow popups for this site and try again.', 'err');
+    } else {
+      st('Error: ' + err.message, 'err');
+    }
     enableAll();
   }
 };
@@ -234,16 +246,16 @@ document.getElementById('btn-discord').onclick = () => {
     `&scope=identify`;
 };
 
-// ── Anonymous button ──────────────────────────────────────────
+// ── Anonymous ─────────────────────────────────────────────────
 async function anonSignIn() {
   const nick = document.getElementById('nick-input').value.trim();
   if (!nick) { st('Enter a nickname', 'err'); return; }
-  disableAll();
-  st('Signing in...');
+  disableAll(); st('Signing in...');
   try {
     const result = await signInAnonymously(auth);
     await updateProfile(result.user, { displayName: nick });
     await saveProfile(result.user, nick, false);
+    redirectDone = true;
     st('Welcome ' + nick + '!', 'ok');
     setTimeout(doRedirect, 600);
   } catch(err) {
