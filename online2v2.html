@@ -214,7 +214,7 @@ import { getAuth, onAuthStateChanged, signOut }
 const FC={apiKey:"AIzaSyDyZcVPRTMk8_k0Kr_prqNZ6bZlbGq1oV4",authDomain:"pong-online-18210.firebaseapp.com",databaseURL:"https://pong-online-18210-default-rtdb.firebaseio.com",projectId:"pong-online-18210",storageBucket:"pong-online-18210.firebasestorage.app",messagingSenderId:"897676900222",appId:"1:897676900222:web:7933fd119d9b573b9d252f"};
 const fbApp=initializeApp(FC), db=getDatabase(fbApp), auth=getAuth(fbApp);
 
-const W=760,H=480,PW=14,PH=160,HALF=80,BS=10,WIN=7,TICK=1000/60;
+const W=760,H=480,PW=14,PH=160,BS=10,WIN=7,TICK=1000/60,SPEED=6;
 
 // ── Auth — wait properly ──────────────────────────────────────
 let currentUser=null;
@@ -246,7 +246,10 @@ async function getNick(){
 let myRole=null,myNick='Player',roomId=null,players={};
 let running=false,paused=true,rafId=null,accumulator=0,lastTick=0,rematchVotes=0,publicInterval=null;
 let leftY=H/2-PH/2,rightY=H/2-PH/2;
-let p1Off=0,p2Off=HALF,p3Off=0,p4Off=HALF;
+// Each player sends their directional input: -1 (up), 0 (still), +1 (down)
+// The two teammates' inputs are summed to move the shared paddle
+let inputL=0,inputR=0;   // combined input for left/right paddle this frame
+let remoteInputs={p1:0,p2:0,p3:0,p4:0}; // last received from DB
 let ball=null,scoreL=0,scoreR=0;
 
 // ── Input ─────────────────────────────────────────────────────
@@ -422,40 +425,36 @@ async function beginGame(){
 
   scoreL=0;scoreR=0;rematchVotes=0;
   leftY=H/2-PH/2;rightY=H/2-PH/2;
-  p1Off=0;p2Off=HALF;p3Off=0;p4Off=HALF;
+  inputL=0;inputR=0;
+  remoteInputs={p1:0,p2:0,p3:0,p4:0};
   ball=mkBall(1);paused=true;running=true;
 
   document.getElementById('score-l').textContent='0';
   document.getElementById('score-r').textContent='0';
   document.getElementById('chat-msgs').innerHTML='';
 
-  const nameL=esc((players.p1?.nick||'?')+' / '+(players.p2?.nick||'?'));
-  const nameR=esc((players.p3?.nick||'?')+' / '+(players.p4?.nick||'?'));
+  const nameL=esc((players.p1?.nick||'?')+' + '+(players.p2?.nick||'?'));
+  const nameR=esc((players.p3?.nick||'?')+' + '+(players.p4?.nick||'?'));
   document.getElementById('players-l').innerHTML=nameL;
   document.getElementById('players-r').innerHTML=nameR;
 
-  const hints={p1:'YOU = TOP of LEFT paddle (↑↓)',p2:'YOU = BOTTOM of LEFT paddle (↑↓)',p3:'YOU = TOP of RIGHT paddle (↑↓)',p4:'YOU = BOTTOM of RIGHT paddle (↑↓)'};
-  document.getElementById('role-hint').textContent=hints[myRole]||'';
+  const side=(myRole==='p1'||myRole==='p2')?'LEFT':'RIGHT';
+  document.getElementById('role-hint').textContent=`YOU control the ${side} paddle — ↑↓ to move, coordinate with your teammate!`;
   setGS('PRESS SPACE');
   show('screen-game');
 
-  // Chat
   chatSub();
   chatAppend('','Game started! 4 players connected.',false,true);
 
-  // Listen to other players' inputs
+  // Listen to teammates' directional inputs (-1/0/1)
   ['p1','p2','p3','p4'].forEach(r=>{
     if(unsubIn[r]){unsubIn[r]();unsubIn[r]=null;}
     if(r===myRole)return;
     unsubIn[r]=onValue(inRef(roomId,r),s=>{
-      const v=s.val();if(v==null)return;
-      if(r==='p1')p1Off=v;if(r==='p2')p2Off=v;
-      if(r==='p3')p3Off=v;if(r==='p4')p4Off=v;
-      recalcPaddles();
+      remoteInputs[r]=(s.val()==null)?0:s.val();
     });
   });
 
-  // Non-host: listen to authoritative state
   if(myRole!=='p1'){
     if(unsubState){unsubState();unsubState=null;}
     unsubState=onValue(stRef(roomId),s=>{
@@ -469,7 +468,6 @@ async function beginGame(){
     });
   }
 
-  // Signals
   if(unsubSig){unsubSig();unsubSig=null;}
   unsubSig=onValue(ref(db,`rooms2v2/${roomId}/signal`),s=>{
     const v=s.val();if(!v)return;
@@ -485,55 +483,49 @@ async function beginGame(){
   rafId=requestAnimationFrame(loop);
 }
 
-function recalcPaddles(){
-  // Left: top of paddle = min(p1Off, p2Off-HALF), clamped
-  leftY =Math.max(0,Math.min(H-PH, Math.min(p1Off,p2Off-HALF)));
-  rightY=Math.max(0,Math.min(H-PH, Math.min(p3Off,p4Off-HALF)));
-}
-
 function mkBall(d){const a=(Math.random()*0.6-0.3),s=5;return{x:W/2-BS/2,y:H/2-BS/2,vx:d*s*Math.cos(a),vy:s*Math.sin(a),spd:s};}
 
 function loop(now){
   if(!running){draw();return;}
   const dt=Math.min(now-lastTick,100);lastTick=now;
+
+  // Read my directional input: -1, 0, or +1
+  const up=keys['ArrowUp']||touch.up;
+  const dn=keys['ArrowDown']||touch.dn;
+  const myDir=(up?-1:0)+(dn?1:0); // -1, 0, or +1
+
+  // Publish my direction to Firebase
+  set(inRef(roomId,myRole),myDir);
+
+  // Combine my input with teammate's for the shared paddle
+  if(myRole==='p1'||myRole==='p2'){
+    const teamDir=myDir+(myRole==='p1'?remoteInputs.p2:remoteInputs.p1);
+    inputL=Math.max(-1,Math.min(1,teamDir)); // clamp to [-1,1]
+  } else {
+    const teamDir=myDir+(myRole==='p3'?remoteInputs.p4:remoteInputs.p3);
+    inputR=Math.max(-1,Math.min(1,teamDir));
+  }
+
   if(!paused){accumulator+=dt;while(accumulator>=TICK){tick();accumulator-=TICK;}}
-  // Send my input (absolute Y position of my half)
-  const myOff=getMyOffset();
-  set(inRef(roomId,myRole),myOff);
   draw();
   rafId=requestAnimationFrame(loop);
 }
 
-function getMyOffset(){
-  const up=keys['ArrowUp']||touch.up, dn=keys['ArrowDown']||touch.dn;
-  if(myRole==='p1'){
-    if(up&&p1Off>0)p1Off-=6;
-    if(dn&&p1Off<H-PH)p1Off+=6;
-    // nudge p2 to stay below p1
-    if(p2Off<p1Off+HALF)p2Off=p1Off+HALF;
-    recalcPaddles();return p1Off;
-  }
-  if(myRole==='p2'){
-    if(up&&p2Off>HALF)p2Off-=6;
-    if(dn&&p2Off<H-HALF)p2Off+=6;
-    if(p1Off>p2Off-HALF)p1Off=p2Off-HALF;
-    recalcPaddles();return p2Off;
-  }
-  if(myRole==='p3'){
-    if(up&&p3Off>0)p3Off-=6;
-    if(dn&&p3Off<H-PH)p3Off+=6;
-    if(p4Off<p3Off+HALF)p4Off=p3Off+HALF;
-    recalcPaddles();return p3Off;
-  }
-  // p4
-  if(up&&p4Off>HALF)p4Off-=6;
-  if(dn&&p4Off<H-HALF)p4Off+=6;
-  if(p3Off>p4Off-HALF)p3Off=p4Off-HALF;
-  recalcPaddles();return p4Off;
-}
-
 function tick(){
-  if(myRole!=='p1')return;
+  // Move paddles — host applies both teams' combined inputs
+  // Non-host: own side moves locally for responsiveness, host state overrides position
+  if(myRole==='p1'||myRole==='p2'){
+    leftY=Math.max(0,Math.min(H-PH, leftY+inputL*SPEED));
+  } else {
+    rightY=Math.max(0,Math.min(H-PH, rightY+inputR*SPEED));
+  }
+
+  if(myRole!=='p1')return; // only host runs physics
+
+  // Host also moves right paddle using p3+p4 combined remote input
+  const hostInputR=remoteInputs.p3+remoteInputs.p4;
+  rightY=Math.max(0,Math.min(H-PH, rightY+Math.max(-1,Math.min(1,hostInputR))*SPEED));
+
   ball.x+=ball.vx;ball.y+=ball.vy;
   if(ball.y<=0){ball.y=0;ball.vy=Math.abs(ball.vy);}
   if(ball.y+BS>=H){ball.y=H-BS;ball.vy=-Math.abs(ball.vy);}
@@ -574,7 +566,8 @@ function showWin(){
 }
 function restartGame(){
   scoreL=0;scoreR=0;rematchVotes=0;
-  leftY=H/2-PH/2;rightY=H/2-PH/2;p1Off=0;p2Off=HALF;p3Off=0;p4Off=HALF;
+  leftY=H/2-PH/2;rightY=H/2-PH/2;
+  inputL=0;inputR=0;remoteInputs={p1:0,p2:0,p3:0,p4:0};
   ball=mkBall(1);paused=true;running=true;
   document.getElementById('score-l').textContent='0';
   document.getElementById('score-r').textContent='0';
@@ -637,24 +630,10 @@ function draw(){
   ctx.setLineDash([8,12]);ctx.strokeStyle='#333';ctx.lineWidth=2;
   ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
 
-  // Left paddle — two halves
+  // One solid paddle per side
   ctx.fillStyle='#fff';
   ctx.fillRect(20,leftY,PW,PH);
-  // divider
-  ctx.fillStyle='#000';
-  ctx.fillRect(20,leftY+HALF-1,PW,2);
-  // Right paddle
-  ctx.fillStyle='#fff';
   ctx.fillRect(W-20-PW,rightY,PW,PH);
-  ctx.fillStyle='#000';
-  ctx.fillRect(W-20-PW,rightY+HALF-1,PW,2);
-
-  // Highlight MY half with a brighter inner stroke
-  ctx.strokeStyle='#fff';ctx.lineWidth=2;
-  if(myRole==='p1') ctx.strokeRect(21,p1Off+1,PW-2,HALF-2);
-  if(myRole==='p2') ctx.strokeRect(21,p2Off+1,PW-2,HALF-2);
-  if(myRole==='p3') ctx.strokeRect(W-20-PW+1,p3Off+1,PW-2,HALF-2);
-  if(myRole==='p4') ctx.strokeRect(W-20-PW+1,p4Off+1,PW-2,HALF-2);
 
   if(ball){ctx.fillStyle='#fff';ctx.fillRect(Math.round(ball.x),Math.round(ball.y),BS,BS);}
 }
